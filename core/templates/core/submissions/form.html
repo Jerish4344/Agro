@@ -1,0 +1,498 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}
+{% if submission %}Edit Submission{% else %}New Submission{% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.1/dist/flowbite.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-4">
+            <a href="{% url 'core:submission_list' %}" 
+               class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Back to Submissions
+            </a>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mt-2">
+            {% if submission %}Edit Price Submission{% else %}New Price Submission{% endif %}
+        </h1>
+        <p class="mt-1 text-sm text-gray-600">
+            {% if submission %}
+                Update the price submission details below
+            {% else %}
+                Fill in the details for your price submission
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white shadow rounded-lg">
+        <form method="post" class="space-y-6 p-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Please correct the following errors:</h3>
+                        <div class="mt-1 text-sm text-red-700">
+                            {{ form.non_field_errors|join:", " }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Column -->
+                <div class="space-y-6">
+                    <!-- Date -->
+                    <div>
+                        <label for="{{ form.date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Date *
+                        </label>
+                        <input type="date" 
+                               id="{{ form.date.id_for_label }}"
+                               name="{{ form.date.name }}"
+                               value="{{ form.date.value|default:'' }}"
+                               required
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                      {% if form.date.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                        {% if form.date.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.date.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.date.help_text %}
+                        <p class="mt-1 text-sm text-gray-500">{{ form.date.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Firm -->
+                    <div>
+                        <label for="{{ form.firm.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Firm *
+                        </label>
+                        <select id="{{ form.firm.id_for_label }}"
+                                name="{{ form.firm.name }}"
+                                required
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.firm.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select a firm</option>
+                            {% for firm in firms %}
+                            <option value="{{ firm.id }}"
+                                    {% if form.firm.value == firm.id|stringformat:"s" %}selected{% endif %}>
+                                {{ firm.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.firm.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.firm.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label for="{{ form.location.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Location *
+                        </label>
+                        <select id="{{ form.location.id_for_label }}"
+                                name="{{ form.location.name }}"
+                                required
+                                onchange="updateFarmerOptions()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.location.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select a location</option>
+                            {% for location, farmers in farmers_by_location.items %}
+                            <option value="{{ location.id }}"
+                                    {% if form.location.value == location.id|stringformat:"s" %}selected{% endif %}>
+                                {{ location.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.location.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.location.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Category -->
+                    <div>
+                        <label for="{{ form.category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Category *
+                        </label>
+                        <select id="{{ form.category.id_for_label }}"
+                                name="{{ form.category.name }}"
+                                required
+                                onchange="updateProductOptions()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.category.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select a category</option>
+                            {% for category, products in products_by_category.items %}
+                            <option value="{{ category.id }}"
+                                    {% if form.category.value == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.category.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.category.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Product -->
+                    <div>
+                        <label for="{{ form.product.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Product *
+                        </label>
+                        <select id="{{ form.product.id_for_label }}"
+                                name="{{ form.product.name }}"
+                                required
+                                onchange="updateProductUnit()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.product.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select a product</option>
+                            {% for category, products in products_by_category.items %}
+                            <optgroup label="{{ category.name }}">
+                                {% for product in products %}
+                                <option value="{{ product.id }}" 
+                                        data-unit="{{ product.unit }}"
+                                        {% if form.product.value == product.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ product.name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                        {% if form.product.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.product.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Farmer -->
+                    <div>
+                        <label for="{{ form.farmer.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Farmer *
+                        </label>
+                        <select id="{{ form.farmer.id_for_label }}"
+                                name="{{ form.farmer.name }}"
+                                required
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.farmer.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select a farmer</option>
+                            {% for location, farmers in farmers_by_location.items %}
+                            <optgroup label="{{ location.name }}">
+                                {% for farmer in farmers %}
+                                <option value="{{ farmer.id }}"
+                                        {% if form.farmer.value == farmer.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ farmer.name }} - {{ farmer.phone_number }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                        {% if form.farmer.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.farmer.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space-y-6">
+                    <!-- Price per Unit -->
+                    <div>
+                        <label for="{{ form.price_per_unit.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Price per Unit (₹) *
+                            <span id="unit-display" class="text-gray-500"></span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">₹</span>
+                            </div>
+                            <input type="number" 
+                                   id="{{ form.price_per_unit.id_for_label }}"
+                                   name="{{ form.price_per_unit.name }}"
+                                   value="{{ form.price_per_unit.value|default:'' }}"
+                                   step="0.01"
+                                   min="0"
+                                   required
+                                   onchange="calculateTotal()"
+                                   oninput="calculateTotal()"
+                                   class="block w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                          {% if form.price_per_unit.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                        </div>
+                        {% if form.price_per_unit.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.price_per_unit.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Quantity -->
+                    <div>
+                        <label for="{{ form.quantity.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Quantity *
+                            <span id="quantity-unit-display" class="text-gray-500"></span>
+                        </label>
+                        <input type="number" 
+                               id="{{ form.quantity.id_for_label }}"
+                               name="{{ form.quantity.name }}"
+                               value="{{ form.quantity.value|default:'' }}"
+                               step="0.01"
+                               min="0"
+                               required
+                               onchange="calculateTotal()"
+                               oninput="calculateTotal()"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                      {% if form.quantity.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                        {% if form.quantity.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.quantity.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Unit -->
+                    <div>
+                        <label for="{{ form.unit.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Unit *
+                        </label>
+                        <select id="{{ form.unit.id_for_label }}"
+                                name="{{ form.unit.name }}"
+                                required
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.unit.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select unit</option>
+                            <option value="kg" {% if form.unit.value == 'kg' %}selected{% endif %}>Kilogram (kg)</option>
+                            <option value="g" {% if form.unit.value == 'g' %}selected{% endif %}>Gram (g)</option>
+                            <option value="ton" {% if form.unit.value == 'ton' %}selected{% endif %}>Ton</option>
+                            <option value="piece" {% if form.unit.value == 'piece' %}selected{% endif %}>Piece</option>
+                            <option value="dozen" {% if form.unit.value == 'dozen' %}selected{% endif %}>Dozen</option>
+                            <option value="box" {% if form.unit.value == 'box' %}selected{% endif %}>Box</option>
+                            <option value="sack" {% if form.unit.value == 'sack' %}selected{% endif %}>Sack</option>
+                        </select>
+                        {% if form.unit.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.unit.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Total Value (Calculated) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Total Value (₹)
+                        </label>
+                        <div class="bg-gray-50 border border-gray-300 rounded-md px-3 py-2">
+                            <span id="total-value" class="text-lg font-semibold text-gray-900">₹0.00</span>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Automatically calculated</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                </label>
+                <textarea id="{{ form.notes.id_for_label }}"
+                          name="{{ form.notes.name }}"
+                          rows="3"
+                          placeholder="Any additional notes about this submission..."
+                          class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                 {% if form.notes.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">{{ form.notes.value|default:'' }}</textarea>
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Price Information Alert -->
+            <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">Price Information</h3>
+                        <div class="mt-1 text-sm text-blue-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Ensure prices are current market rates</li>
+                                <li>Double-check quantity and unit measurements</li>
+                                <li>Include any quality specifications in notes</li>
+                                {% if not submission %}
+                                <li>Submissions can be edited until approved</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <a href="{% url 'core:submission_list' %}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Cancel
+                </a>
+                
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if submission %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        {% else %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        {% endif %}
+                    </svg>
+                    {% if submission %}Update Submission{% else %}Create Submission{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Store data for JavaScript access
+const categoryProductData = {
+    {% for category, products in products_by_category.items %}
+    "{{ category.id }}": [
+        {% for product in products %}
+        {
+            "id": "{{ product.id }}",
+            "name": "{{ product.name|escapejs }}",
+            "unit": "{{ product.unit|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+const locationFarmerData = {
+    {% for location, farmers in farmers_by_location.items %}
+    "{{ location.id }}": [
+        {% for farmer in farmers %}
+        {
+            "id": "{{ farmer.id }}",
+            "name": "{{ farmer.name|escapejs }}",
+            "phone": "{{ farmer.phone_number|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Update product options when category changes
+function updateProductOptions() {
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    const productSelect = document.getElementById('{{ form.product.id_for_label }}');
+    const selectedCategoryId = categorySelect.value;
+    
+    // Clear current product options
+    productSelect.innerHTML = '<option value="">Select a product</option>';
+    
+    if (selectedCategoryId && categoryProductData[selectedCategoryId]) {
+        categoryProductData[selectedCategoryId].forEach(function(product) {
+            const option = document.createElement('option');
+            option.value = product.id;
+            option.textContent = product.name;
+            option.setAttribute('data-unit', product.unit);
+            productSelect.appendChild(option);
+        });
+    }
+    
+    updateProductUnit();
+}
+
+// Update farmer options when location changes
+function updateFarmerOptions() {
+    const locationSelect = document.getElementById('{{ form.location.id_for_label }}');
+    const farmerSelect = document.getElementById('{{ form.farmer.id_for_label }}');
+    const selectedLocationId = locationSelect.value;
+    
+    // Clear current farmer options
+    farmerSelect.innerHTML = '<option value="">Select a farmer</option>';
+    
+    if (selectedLocationId && locationFarmerData[selectedLocationId]) {
+        locationFarmerData[selectedLocationId].forEach(function(farmer) {
+            const option = document.createElement('option');
+            option.value = farmer.id;
+            option.textContent = farmer.name + ' - ' + farmer.phone;
+            farmerSelect.appendChild(option);
+        });
+    }
+}
+
+// Update unit display when product changes
+function updateProductUnit() {
+    const productSelect = document.getElementById('{{ form.product.id_for_label }}');
+    const selectedOption = productSelect.options[productSelect.selectedIndex];
+    const unit = selectedOption.getAttribute('data-unit') || '';
+    
+    const unitDisplay = document.getElementById('unit-display');
+    const quantityUnitDisplay = document.getElementById('quantity-unit-display');
+    const unitSelect = document.getElementById('{{ form.unit.id_for_label }}');
+    
+    if (unitDisplay) {
+        unitDisplay.textContent = unit ? `(per ${unit})` : '';
+    }
+    if (quantityUnitDisplay) {
+        quantityUnitDisplay.textContent = unit ? `(${unit})` : '';
+    }
+    
+    // Automatically set the unit field
+    if (unitSelect && unit) {
+        unitSelect.value = unit;
+    }
+    
+    calculateTotal();
+}
+
+// Calculate total value
+function calculateTotal() {
+    const priceInput = document.getElementById('{{ form.price_per_unit.id_for_label }}');
+    const quantityInput = document.getElementById('{{ form.quantity.id_for_label }}');
+    const totalDisplay = document.getElementById('total-value');
+    
+    if (!priceInput || !quantityInput || !totalDisplay) {
+        console.log('Missing elements for calculation');
+        return;
+    }
+    
+    const price = parseFloat(priceInput.value) || 0;
+    const quantity = parseFloat(quantityInput.value) || 0;
+    const total = price * quantity;
+    
+    totalDisplay.textContent = `₹${total.toFixed(2)}`;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug: Check if data is loaded
+    console.log('Category Product Data:', categoryProductData);
+    console.log('Location Farmer Data:', locationFarmerData);
+    
+    // Initialize dropdowns
+    updateProductOptions();
+    updateFarmerOptions();
+    updateProductUnit();
+    calculateTotal();
+    
+    // Set today's date if creating new submission
+    {% if not submission %}
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    if (dateInput && !dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

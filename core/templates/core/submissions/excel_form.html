@@ -1,0 +1,673 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}
+{% if submission %}Edit Submission{% else %}New Price Submission - Excel Style{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excel-form-grid {
+        overflow-x: auto;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: white;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .grid-table {
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .grid-table th {
+        background: #1e40af;
+        color: white;
+        border: 1px solid #1e40af;
+        padding: 12px 8px;
+        font-weight: 600;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 14px;
+    }
+    
+    .grid-table td {
+        border: 1px solid #e5e7eb;
+        padding: 2px;
+        text-align: center;
+        vertical-align: middle;
+        background: white;
+    }
+    
+    .grid-table th.product-header {
+        background: #3b82f6;
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 200px;
+        text-align: left;
+    }
+    
+    .grid-table td.product-cell {
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+        min-width: 200px;
+        text-align: left;
+        font-weight: 500;
+        padding: 8px 12px;
+        border-right: 2px solid #3b82f6;
+    }
+    
+    .date-header {
+        min-width: 120px;
+        writing-mode: horizontal-tb;
+    }
+    
+    .price-input {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 14px;
+        border-radius: 4px;
+        min-height: 35px;
+    }
+    
+    .price-input:focus {
+        background: #dbeafe;
+        outline: 2px solid #3b82f6;
+    }
+    
+    .price-input.has-value {
+        background: #dcfce7;
+        font-weight: 500;
+    }
+    
+    .category-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #e0e7ff;
+        color: #3730a3;
+        border-radius: 8px;
+        font-size: 10px;
+        margin-right: 6px;
+    }
+    
+    .controls-section {
+        background: #f8fafc;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+    }
+    
+    .control-row {
+        display: flex;
+        gap: 16px;
+        align-items: end;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    
+    .control-group {
+        min-width: 150px;
+    }
+    
+    .control-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 4px;
+    }
+    
+    .control-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .control-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6;
+    }
+    
+    .save-status {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        display: none;
+        z-index: 1000;
+    }
+    
+    .entry-summary {
+        background: white;
+        padding: 12px 16px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        margin-top: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'core:submission_list' %}" 
+                       class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        Back to Submissions
+                    </a>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mt-2">
+                    📊 Excel-Style Price Entry
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">
+                    Select farmer and location, then enter prices for multiple products and dates quickly
+                </p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-500">
+                    Firm: <span class="font-medium">{{ user.profile.firm.name }}</span>
+                </div>
+                <div class="text-sm text-gray-500">
+                    Buyer: <span class="font-medium">{{ user.get_full_name|default:user.username }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="controls-section">
+        <div class="control-row">
+            <div class="control-group">
+                <label for="locationSelect">Location *</label>
+                <select id="locationSelect" class="control-input" required>
+                    <option value="">Select Location</option>
+                    {% regroup farmers by location as location_groups %}
+                    {% for location_group in location_groups %}
+                        <option value="{{ location_group.grouper.id }}">{{ location_group.grouper.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="farmerSelect">Farmer *</label>
+                <select id="farmerSelect" class="control-input" required disabled>
+                    <option value="">Select Farmer</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="categoryFilter">Category Filter</label>
+                <select id="categoryFilter" class="control-input">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="defaultUnit">Default Unit</label>
+                <select id="defaultUnit" class="control-input">
+                    <option value="kg">Kilogram</option>
+                    <option value="g">Gram</option>
+                    <option value="ton">Ton</option>
+                    <option value="piece">Piece</option>
+                    <option value="dozen">Dozen</option>
+                    <option value="box">Box</option>
+                    <option value="sack">Sack</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="control-row">
+            <div class="control-group">
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" class="control-input" value="{{ today|date:'Y-m-d' }}">
+            </div>
+            
+            <div class="control-group">
+                <label for="dayCount">Number of Days</label>
+                <select id="dayCount" class="control-input">
+                    <option value="7" selected>7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                </select>
+            </div>
+            
+            <div class="control-group" style="align-self: end;">
+                <button id="generateGridBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50" disabled>
+                    🔄 Generate Grid
+                </button>
+            </div>
+            
+            <div class="control-group" style="align-self: end;">
+                <button id="saveAllBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50" disabled>
+                    💾 Save All Prices
+                </button>
+            </div>
+            
+            <div class="control-group" style="align-self: end;">
+                <button id="clearAllBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    🗑️ Clear All
+                </button>
+            </div>
+        </div>
+        
+        <!-- Entry Summary -->
+        <div class="entry-summary">
+            <div class="flex justify-between items-center text-sm">
+                <div>
+                    <span class="font-medium" id="entryCount">0</span> price entries ready to save
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-200 rounded mr-2"></div>
+                        <span>Has Price</span>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-blue-200 rounded mr-2"></div>
+                        <span>Focused</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel-like Grid -->
+    <div class="excel-form-grid" id="gridContainer" style="display: none;">
+        <table class="grid-table">
+            <thead>
+                <tr id="headerRow">
+                    <th class="product-header">Product</th>
+                    <!-- Date columns will be generated by JavaScript -->
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+                <!-- Product rows will be generated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Instructions -->
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4" id="instructions">
+        <h3 class="text-lg font-medium text-blue-900 mb-2">📋 How to Use Excel-Style Entry</h3>
+        <div class="text-sm text-blue-800 space-y-1">
+            <p><strong>1.</strong> Select Location and Farmer from the dropdowns above</p>
+            <p><strong>2.</strong> Choose date range and click "Generate Grid"</p>
+            <p><strong>3.</strong> Navigate the grid like Excel:</p>
+            <ul class="ml-4 space-y-1">
+                <li>• <kbd class="bg-white px-1 rounded">Tab</kbd> - Move right</li>
+                <li>• <kbd class="bg-white px-1 rounded">Shift+Tab</kbd> - Move left</li>
+                <li>• <kbd class="bg-white px-1 rounded">Enter</kbd> - Move down</li>
+                <li>• <kbd class="bg-white px-1 rounded">Arrow Keys</kbd> - Navigate in any direction</li>
+                <li>• Type price directly in any cell</li>
+            </ul>
+            <p><strong>4.</strong> Click "Save All Prices" when done</p>
+        </div>
+    </div>
+</div>
+
+<!-- Save Success Indicator -->
+<div class="save-status" id="saveStatus">
+    ✅ Prices saved successfully!
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const locationSelect = document.getElementById('locationSelect');
+    const farmerSelect = document.getElementById('farmerSelect');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const generateGridBtn = document.getElementById('generateGridBtn');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const gridContainer = document.getElementById('gridContainer');
+    const gridBody = document.getElementById('gridBody');
+    const headerRow = document.getElementById('headerRow');
+    const entryCount = document.getElementById('entryCount');
+    const instructions = document.getElementById('instructions');
+    
+    let currentFarmer = null;
+    let currentLocation = null;
+    let dateRange = [];
+    let products = [];
+    let changedEntries = new Set();
+    
+    // Farmers data from Django
+    const farmersData = {
+        {% for farmer in farmers %}
+        "{{ farmer.id }}": {
+            "id": {{ farmer.id }},
+            "name": "{{ farmer.name }}",
+            "location_id": {{ farmer.location.id }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+    
+    // Products data from Django
+    const productsData = [
+        {% for product in products %}
+        {
+            "id": {{ product.id }},
+            "name": "{{ product.name }}",
+            "category": "{{ product.category.name }}",
+            "category_id": {{ product.category.id }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Location change handler
+    locationSelect.addEventListener('change', function() {
+        currentLocation = this.value;
+        farmerSelect.innerHTML = '<option value="">Select Farmer</option>';
+        farmerSelect.disabled = !currentLocation;
+        
+        if (currentLocation) {
+            // Populate farmers for selected location
+            Object.values(farmersData).forEach(farmer => {
+                if (farmer.location_id == currentLocation) {
+                    const option = document.createElement('option');
+                    option.value = farmer.id;
+                    option.textContent = farmer.name;
+                    farmerSelect.appendChild(option);
+                }
+            });
+        }
+        
+        updateGenerateButton();
+    });
+    
+    // Farmer change handler
+    farmerSelect.addEventListener('change', function() {
+        currentFarmer = this.value;
+        updateGenerateButton();
+    });
+    
+    // Category filter
+    categoryFilter.addEventListener('change', function() {
+        filterProductRows();
+    });
+    
+    // Generate grid
+    generateGridBtn.addEventListener('click', function() {
+        generateGrid();
+        instructions.style.display = 'none';
+        gridContainer.style.display = 'block';
+        saveAllBtn.disabled = false;
+    });
+    
+    // Save all prices
+    saveAllBtn.addEventListener('click', function() {
+        saveAllPrices();
+    });
+    
+    // Clear all
+    clearAllBtn.addEventListener('click', function() {
+        if (confirm('Clear all price entries?')) {
+            clearAllPrices();
+        }
+    });
+    
+    function updateGenerateButton() {
+        generateGridBtn.disabled = !(currentLocation && currentFarmer);
+    }
+    
+    function generateGrid() {
+        // Generate date range
+        const startDate = new Date(document.getElementById('startDate').value);
+        const dayCount = parseInt(document.getElementById('dayCount').value);
+        dateRange = [];
+        
+        for (let i = 0; i < dayCount; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            dateRange.push(date);
+        }
+        
+        // Filter products by category if selected
+        const selectedCategory = categoryFilter.value;
+        products = selectedCategory ? 
+            productsData.filter(p => p.category_id == selectedCategory) : 
+            productsData;
+        
+        // Generate header
+        headerRow.innerHTML = '<th class="product-header">Product</th>';
+        dateRange.forEach(date => {
+            const th = document.createElement('th');
+            th.className = 'date-header';
+            th.innerHTML = `
+                ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<br>
+                <span style="font-size: 11px;">${date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+            `;
+            headerRow.appendChild(th);
+        });
+        
+        // Generate product rows
+        gridBody.innerHTML = '';
+        products.forEach(product => {
+            const row = document.createElement('tr');
+            row.className = 'product-row';
+            row.dataset.categoryId = product.category_id;
+            
+            // Product name cell
+            const productCell = document.createElement('td');
+            productCell.className = 'product-cell';
+            productCell.innerHTML = `
+                <span class="category-badge">${product.category}</span>
+                <span>${product.name}</span>
+            `;
+            row.appendChild(productCell);
+            
+            // Date cells with price inputs
+            dateRange.forEach(date => {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'price-input';
+                input.placeholder = '₹';
+                input.step = '0.01';
+                input.min = '0.01';
+                input.dataset.date = date.toISOString().split('T')[0];
+                input.dataset.productId = product.id;
+                input.dataset.productName = product.name;
+                
+                // Add input event listener
+                input.addEventListener('input', function() {
+                    handlePriceInput(this);
+                });
+                
+                // Add keyboard navigation
+                input.addEventListener('keydown', function(e) {
+                    handleKeyNavigation(e, this);
+                });
+                
+                td.appendChild(input);
+                row.appendChild(td);
+            });
+            
+            gridBody.appendChild(row);
+        });
+    }
+    
+    function handlePriceInput(input) {
+        const value = parseFloat(input.value);
+        const key = `${input.dataset.date}_${input.dataset.productId}`;
+        
+        if (value && value > 0) {
+            input.classList.add('has-value');
+            changedEntries.add(key);
+        } else {
+            input.classList.remove('has-value');
+            changedEntries.delete(key);
+        }
+        
+        updateEntryCount();
+    }
+    
+    function handleKeyNavigation(e, input) {
+        const cell = input.closest('td');
+        const row = cell.closest('tr');
+        const cellIndex = Array.from(row.children).indexOf(cell);
+        
+        switch(e.key) {
+            case 'Enter':
+                e.preventDefault();
+                // Move down
+                const nextRow = row.nextElementSibling;
+                if (nextRow) {
+                    const nextInput = nextRow.children[cellIndex]?.querySelector('.price-input');
+                    if (nextInput) nextInput.focus();
+                }
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                const prevRow = row.previousElementSibling;
+                if (prevRow) {
+                    const prevInput = prevRow.children[cellIndex]?.querySelector('.price-input');
+                    if (prevInput) prevInput.focus();
+                }
+                break;
+                
+            case 'ArrowDown':
+                e.preventDefault();
+                const downRow = row.nextElementSibling;
+                if (downRow) {
+                    const downInput = downRow.children[cellIndex]?.querySelector('.price-input');
+                    if (downInput) downInput.focus();
+                }
+                break;
+                
+            case 'ArrowLeft':
+                e.preventDefault();
+                const prevCell = cell.previousElementSibling;
+                if (prevCell && prevCell.querySelector('.price-input')) {
+                    prevCell.querySelector('.price-input').focus();
+                }
+                break;
+                
+            case 'ArrowRight':
+            case 'Tab':
+                if (e.key === 'Tab') e.preventDefault();
+                const nextCell = cell.nextElementSibling;
+                if (nextCell && nextCell.querySelector('.price-input')) {
+                    nextCell.querySelector('.price-input').focus();
+                }
+                break;
+        }
+    }
+    
+    function filterProductRows() {
+        const selectedCategory = categoryFilter.value;
+        const rows = gridBody.querySelectorAll('.product-row');
+        
+        rows.forEach(row => {
+            if (!selectedCategory || row.dataset.categoryId === selectedCategory) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    function updateEntryCount() {
+        entryCount.textContent = changedEntries.size;
+    }
+    
+    function clearAllPrices() {
+        const inputs = gridBody.querySelectorAll('.price-input');
+        inputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('has-value');
+        });
+        changedEntries.clear();
+        updateEntryCount();
+    }
+    
+    function saveAllPrices() {
+        if (!currentFarmer) {
+            alert('Please select a farmer first');
+            return;
+        }
+        
+        const entries = [];
+        const inputs = gridBody.querySelectorAll('.price-input.has-value');
+        
+        inputs.forEach(input => {
+            const value = parseFloat(input.value);
+            if (value && value > 0) {
+                entries.push({
+                    date: input.dataset.date,
+                    product_id: input.dataset.productId,
+                    farmer_id: currentFarmer,
+                    price: value,
+                    quantity: 1, // Default quantity
+                    unit: document.getElementById('defaultUnit').value
+                });
+            }
+        });
+        
+        if (entries.length === 0) {
+            alert('No prices to save');
+            return;
+        }
+        
+        // Save via AJAX
+        fetch('{% url "core:save_excel_prices" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ entries: entries })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const saveStatus = document.getElementById('saveStatus');
+                saveStatus.textContent = `✅ Saved ${data.saved_count} prices successfully!`;
+                saveStatus.style.display = 'block';
+                setTimeout(() => saveStatus.style.display = 'none', 3000);
+                
+                // Clear entries
+                clearAllPrices();
+                
+                if (data.errors && data.errors.length > 0) {
+                    alert('Some entries had issues:\n' + data.errors.join('\n'));
+                }
+            } else {
+                alert('Error saving prices: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error saving prices: ' + error);
+        });
+    }
+});
+</script>
+{% endblock %}

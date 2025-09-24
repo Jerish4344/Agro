@@ -1,0 +1,476 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Business Head - Price Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excel-submission-grid {
+        overflow-x: auto;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .grid-table {
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .grid-table th {
+        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+        color: white;
+        border: 1px solid #7c3aed;
+        padding: 12px;
+        font-weight: 600;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 14px;
+    }
+    
+    .grid-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0;
+        text-align: center;
+        vertical-align: middle;
+        background: white;
+    }
+    
+    .farmer-header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+        color: white;
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 150px;
+        text-align: left !important;
+        padding: 12px 16px !important;
+    }
+    
+    .farmer-header-cell {
+        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+        color: white;
+        min-width: 120px;
+        text-align: center !important;
+        padding: 12px !important;
+    }
+    
+    .product-cell {
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+        min-width: 150px;
+        text-align: left;
+        font-weight: 500;
+        padding: 12px 16px;
+        border-right: 2px solid #059669;
+    }
+    
+    .price-display {
+        width: 100%;
+        height: 50px;
+        border: 1px solid #e5e7eb;
+        background: transparent;
+        text-align: center;
+        padding: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        border-radius: 0;
+        cursor: default;
+        color: #374151;
+    }
+    
+    .price-display.has-price {
+        background-color: #f0f9ff;
+        border-color: #0ea5e9;
+        color: #0c4a6e;
+        font-weight: 600;
+    }
+    
+    .price-display.min-price {
+        background-color: #dcfce7 !important;
+        border: 2px solid #16a34a !important;
+        color: #14532d !important;
+        font-weight: 700 !important;
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4) !important;
+    }
+    
+    .price-cell.min-price {
+        background-color: #dcfce7 !important;
+        border: 2px solid #16a34a !important;
+    }
+    
+    .price-cell.min-price .price-display {
+        background-color: #dcfce7 !important;
+        color: #14532d !important;
+        font-weight: 700 !important;
+        border: none !important;
+    }
+    
+    .price-display.no-price {
+        background-color: #f9fafb;
+        color: #9ca3af;
+        font-style: italic;
+    }
+    
+    .business-head-banner {
+        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+        color: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        text-align: center;
+    }
+    
+    .category-selector {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-panel {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .legend {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid #d1d5db;
+    }
+    
+    .min-price-legend {
+        background-color: #dcfce7;
+        border-color: #10b981;
+    }
+    
+    .has-price-legend {
+        background-color: #f0f9ff;
+        border-color: #0ea5e9;
+    }
+    
+    .no-price-legend {
+        background-color: #f9fafb;
+        border-color: #d1d5db;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Business Head Banner -->
+    <div class="business-head-banner">
+        <h1 class="text-2xl font-bold mb-2">Business Head - Price Dashboard</h1>
+        <p class="text-purple-100">Enterprise View: <span class="font-semibold">Today's Submitted Prices</span></p>
+        <p class="text-purple-100 text-sm">View approved prices submitted by buyers - minimum prices highlighted in green</p>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color min-price-legend"></div>
+            <span>Minimum Price</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color has-price-legend"></div>
+            <span>Has Price Data</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color no-price-legend"></div>
+            <span>No Data</span>
+        </div>
+    </div>
+
+    <!-- Category and Product Selection -->
+    <div class="category-selector">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+                <label class="text-sm font-medium text-gray-700">Filter by Category:</label>
+                <select id="categoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <label class="text-sm font-medium text-gray-700 ml-4">Filter by Product:</label>
+                <select id="productFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" data-category="{{ product.category.id }}">{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-600">📊 Read-Only Dashboard</span>
+                <button id="refreshBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                    🔄 Refresh Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Grid -->
+    <div class="excel-submission-grid">
+        <table class="grid-table">
+            <thead>
+                <tr>
+                    <th class="farmer-header">
+                        <div>Product</div>
+                        <div class="text-xs font-normal text-green-100 mt-1">{{ products|length }} items</div>
+                    </th>
+                    {% for farmer in all_farmers %}
+                        <th class="farmer-header-cell" data-farmer="{{ farmer.id }}">
+                            <div class="font-bold">{{ farmer.name }}</div>
+                            <div class="text-xs font-normal opacity-90">{{ farmer.location.name }}</div>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+                {% for product in products %}
+                    <tr class="product-row" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                        <td class="product-cell">
+                            <div class="font-semibold text-gray-900">{{ product.name }}</div>
+                            <div class="product-info text-xs text-gray-600">{{ product.category.name }}</div>
+                        </td>
+                        {% for farmer in all_farmers %}
+                            <td class="price-cell" data-farmer="{{ farmer.id }}" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                                <div class="price-display no-price" 
+                                     data-farmer="{{ farmer.id }}"
+                                     data-product="{{ product.id }}"
+                                     data-product-name="{{ product.name }}"
+                                     data-farmer-name="{{ farmer.name }}">
+                                    -
+                                </div>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Statistics Panel -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div class="stat-value" id="totalSubmissions">{{ total_submissions }}</div>
+            <div class="stat-label">Total Submissions</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="productsWithData">0</div>
+            <div class="stat-label">Products with Data</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="farmersWithData">0</div>
+            <div class="stat-label">Farmers with Data</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="avgPrice">₹0</div>
+            <div class="stat-label">Avg Price</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="minPriceCount">0</div>
+            <div class="stat-label">Min Prices</div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden CSRF Token -->
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const productFilter = document.getElementById('productFilter');
+    const refreshBtn = document.getElementById('refreshBtn');
+    
+    // Get data from Django context
+    const priceData = {{ price_data|safe }};
+    const minPrices = {{ min_prices|safe }};
+    
+    // Load price data into the grid
+    loadPriceData();
+    
+    // Category filtering
+    categoryFilter.addEventListener('change', function() {
+        const selectedCategory = this.value;
+        const rows = document.querySelectorAll('.product-row');
+        
+        rows.forEach(row => {
+            const categoryId = row.dataset.category;
+            const shouldShow = !selectedCategory || categoryId === selectedCategory;
+            row.style.display = shouldShow ? '' : 'none';
+        });
+        
+        updateProductFilter(selectedCategory);
+        updateStatistics();
+    });
+    
+    // Product filtering
+    productFilter.addEventListener('change', function() {
+        const selectedProduct = this.value;
+        const rows = document.querySelectorAll('.product-row');
+        
+        rows.forEach(row => {
+            const productId = row.dataset.product;
+            const shouldShow = !selectedProduct || productId === selectedProduct;
+            row.style.display = shouldShow ? '' : 'none';
+        });
+        
+        updateStatistics();
+    });
+    
+    // Refresh button
+    refreshBtn.addEventListener('click', function() {
+        window.location.reload();
+    });
+    
+    function updateProductFilter(selectedCategory) {
+        const productOptions = productFilter.querySelectorAll('option[data-category]');
+        
+        productOptions.forEach(option => {
+            const optionCategory = option.dataset.category;
+            const shouldShow = !selectedCategory || optionCategory === selectedCategory;
+            option.style.display = shouldShow ? '' : 'none';
+        });
+        
+        if (selectedCategory && productFilter.value) {
+            const currentOption = productFilter.querySelector(`option[value="${productFilter.value}"]`);
+            if (currentOption && currentOption.dataset.category !== selectedCategory) {
+                productFilter.value = '';
+                productFilter.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+    
+    function loadPriceData() {
+        // Load prices into the grid
+        Object.keys(priceData).forEach(farmerId => {
+            const farmerPrices = priceData[farmerId];
+            
+            Object.keys(farmerPrices).forEach(productId => {
+                const priceInfo = farmerPrices[productId];
+                const priceDisplay = document.querySelector(
+                    `[data-farmer="${farmerId}"][data-product="${productId}"]`
+                );
+                
+                if (priceDisplay) {
+                    const price = priceInfo.price;
+                    const minPrice = minPrices[productId];
+                    
+                    // Display the price
+                    priceDisplay.textContent = `₹${price.toFixed(2)}`;
+                    priceDisplay.classList.remove('no-price');
+                    priceDisplay.classList.add('has-price');
+                    
+                    // Highlight minimum prices in green - use tolerant comparison for floats
+                    if (Math.abs(price - minPrice) < 0.01) {
+                        priceDisplay.classList.add('min-price');
+                    }
+                    
+                    // Add tooltip with buyer info
+                    priceDisplay.title = `Buyer: ${priceInfo.buyer}\nSubmitted: ${new Date(priceInfo.created_at).toLocaleString()}`;
+                }
+            });
+        });
+        
+        updateStatistics();
+    }
+    
+    function updateStatistics() {
+        const allDisplays = document.querySelectorAll('.price-display');
+        const visibleDisplays = Array.from(allDisplays).filter(display => {
+            const row = display.closest('tr');
+            return row.style.display !== 'none';
+        });
+        
+        const filledDisplays = visibleDisplays.filter(display => display.classList.contains('has-price'));
+        const minPriceDisplays = visibleDisplays.filter(display => display.classList.contains('min-price'));
+        
+        // Calculate unique products and farmers with data
+        const productsWithData = new Set();
+        const farmersWithData = new Set();
+        const prices = [];
+        
+        filledDisplays.forEach(display => {
+            const productId = display.dataset.product;
+            const farmerId = display.dataset.farmer;
+            const priceText = display.textContent.replace('₹', '');
+            const price = parseFloat(priceText);
+            
+            if (!isNaN(price)) {
+                productsWithData.add(productId);
+                farmersWithData.add(farmerId);
+                prices.push(price);
+            }
+        });
+        
+        const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+        
+        // Update statistics display
+        document.getElementById('productsWithData').textContent = productsWithData.size;
+        document.getElementById('farmersWithData').textContent = farmersWithData.size;
+        document.getElementById('avgPrice').textContent = '₹' + avgPrice.toFixed(2);
+        document.getElementById('minPriceCount').textContent = minPriceDisplays.length;
+    }
+    
+    // Initial statistics update
+    updateStatistics();
+});
+</script>
+
+{% endblock %}

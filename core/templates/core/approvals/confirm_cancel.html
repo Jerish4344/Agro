@@ -1,0 +1,208 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Confirm Cancellation - Kannammal Agro{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <nav class="flex" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-4">
+                <li>
+                    <div>
+                        <a href="{% url 'core:dashboard' %}" class="text-gray-400 hover:text-gray-500">
+                            <svg class="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                            </svg>
+                            <span class="sr-only">Home</span>
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="flex-shrink-0 h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <a href="{% url 'core:approval_list' %}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">
+                            Pending Approvals
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="flex-shrink-0 h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="ml-4 text-sm font-medium text-gray-500">Confirm Cancellation</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <h1 class="mt-4 text-2xl font-bold text-gray-900">Confirm Cancellation</h1>
+    </div>
+
+    <!-- Submission Details Card -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Submission Details</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Review the details before cancelling this submission</p>
+        </div>
+        <div class="border-t border-gray-200">
+            <dl>
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Product</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ submission.product.name }} ({{ submission.product.category.name }})
+                    </dd>
+                </div>
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Farmer</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ submission.farmer.name }} - {{ submission.location.name }}
+                    </dd>
+                </div>
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Buyer</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ submission.buyer.get_full_name|default:submission.buyer.username }}
+                    </dd>
+                </div>
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Date</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ submission.date }}</dd>
+                </div>
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Price Details</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        <div class="space-y-2">
+                            <p><strong>Price per unit:</strong> ₹{{ submission.price_per_unit }}/{{ submission.unit }}</p>
+                            <p><strong>Quantity:</strong> {{ submission.quantity }} {{ submission.unit }}</p>
+                            <p class="text-lg font-semibold text-green-600">
+                                <strong>Total Value:</strong> ₹{{ submission.total_value|floatformat:2 }}
+                            </p>
+                        </div>
+                    </dd>
+                </div>
+                {% if submission.notes %}
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Notes</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ submission.notes }}</dd>
+                </div>
+                {% endif %}
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Current Status</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            {{ submission.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Cancellation Form -->
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Cancellation Confirmation</h3>
+            <div class="mt-2 max-w-xl text-sm text-gray-500">
+                <p>Please provide a reason for cancelling this price submission and confirm the action.</p>
+            </div>
+            <form method="post" class="mt-5">
+                {% csrf_token %}
+                
+                <!-- Required cancellation reason -->
+                <div class="mb-4">
+                    <label for="cancellation_reason" class="block text-sm font-medium text-gray-700">
+                        Cancellation Reason <span class="text-red-500">*</span>
+                    </label>
+                    <div class="mt-1">
+                        <textarea id="cancellation_reason" name="cancellation_reason" rows="3" required
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border-gray-300 rounded-md"
+                                placeholder="Please provide a detailed reason for cancelling this submission..."></textarea>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        This reason will be recorded and shared with the buyer and farmer.
+                    </p>
+                </div>
+
+                <!-- Common cancellation reasons -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Common Reasons (Click to use)
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onclick="setReason('Price does not match market rates')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Price does not match market rates
+                        </button>
+                        <button type="button" onclick="setReason('Insufficient documentation provided')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Insufficient documentation provided
+                        </button>
+                        <button type="button" onclick="setReason('Product quality concerns')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Product quality concerns
+                        </button>
+                        <button type="button" onclick="setReason('Duplicate submission detected')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Duplicate submission detected
+                        </button>
+                        <button type="button" onclick="setReason('Incorrect farmer/location information')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Incorrect farmer/location information
+                        </button>
+                        <button type="button" onclick="setReason('Submission violates company policy')" 
+                                class="text-left px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Submission violates company policy
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Warning message -->
+                <div class="rounded-md bg-red-50 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">
+                                Warning: Cancellation Action
+                            </h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <p>
+                                    Once cancelled, this submission will be marked as cancelled and cannot be approved later. 
+                                    The buyer and farmer will be notified of this cancellation along with the reason provided.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex items-center justify-end space-x-3">
+                    <a href="{% url 'core:approval_list' %}" 
+                       class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Go Back
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Confirm Cancellation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function setReason(reason) {
+    document.getElementById('cancellation_reason').value = reason;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1030 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Daily Price Submission{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excel-submission-grid {
+        overflow-x: auto;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .grid-table {
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .grid-table th {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: white;
+        border: 1px solid #1e40af;
+        padding: 12px;
+        font-weight: 600;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 14px;
+    }
+    
+    .grid-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0;
+        text-align: center;
+        vertical-align: middle;
+        background: white;
+    }
+    
+    .farmer-header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+        color: white;
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 150px;
+        text-align: left !important;
+        padding: 12px 16px !important;
+    }
+    
+    .farmer-header-cell {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;
+        color: white;
+        min-width: 120px;
+        text-align: center !important;
+        padding: 12px !important;
+    }
+    
+    .product-cell {
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+        min-width: 150px;
+        text-align: left;
+        font-weight: 500;
+        padding: 12px 16px;
+        border-right: 2px solid #059669;
+    }
+    
+    .date-cell {
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+        min-width: 150px;
+        text-align: left;
+        font-weight: 500;
+        padding: 12px 16px;
+        border-right: 2px solid #059669;
+    }
+    
+    .product-header {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%) !important;
+        color: white;
+        min-width: 120px;
+        text-align: center !important;
+        padding: 12px 8px !important;
+    }
+    
+    .fruits-header {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    }
+    
+    .vegetables-header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    }
+    
+    .date-info {
+        font-size: 11px;
+        color: #374151;
+        margin-top: 2px;
+    }
+    
+    .date-header {
+        min-width: 120px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    
+    .today-header {
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    }
+    
+    .weekend-header {
+        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+    }
+    
+    .price-input {
+        width: 100%;
+        height: 50px;
+        border: none;
+        background: transparent;
+        text-align: center;
+        padding: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        border-radius: 0;
+        transition: all 0.2s ease;
+    }
+    
+    .price-input:focus {
+        background: #dbeafe;
+        outline: 3px solid #3b82f6;
+        outline-offset: -3px;
+        transform: scale(1.05);
+        z-index: 30;
+        position: relative;
+    }
+    
+        .price-input.has-value {
+        background-color: #dbeafe;
+        border-color: #3b82f6;
+    }
+    
+    .price-input.saving {
+        background-color: #fef3c7;
+        border-color: #f59e0b;
+        animation: pulse 1s infinite;
+    }
+    
+    .price-input.saved {
+        background-color: #dcfce7;
+        border-color: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+    
+    .price-input.error {
+        background-color: #fee2e2;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+    }
+    
+    .price-input.pending {
+        background-color: #f0f9ff;
+        border-color: #0ea5e9;
+        color: #0c4a6e;
+        font-weight: 500;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .price-input.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .price-input.approved {
+        background: #d1fae5;
+        color: #065f46;
+        cursor: not-allowed;
+    }
+    
+    .farmer-row:hover .farmer-cell {
+        background: #e0f2fe;
+    }
+    
+    .farmer-row:hover .price-input:not(:focus) {
+        background: #f0f9ff;
+    }
+    
+    .region-banner {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        text-align: center;
+    }
+    
+    .category-selector {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .auto-save-indicator {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #6b7280;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: none;
+        z-index: 1000;
+    }
+    
+    .stats-panel {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        max-width: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Region Banner -->
+    <div class="region-banner">
+        <h1 class="text-2xl font-bold mb-2">Daily Price Submission</h1>
+        <p class="text-blue-100">Region: <span class="font-semibold">{{ buyer_location.name }}</span></p>
+        <p class="text-blue-100 text-sm">Enter today's prices for products across farmers in your region</p>
+    </div>
+
+    <!-- Category and Product Selection -->
+    <div class="category-selector">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+                <label class="text-sm font-medium text-gray-700">Filter by Category:</label>
+                <select id="categoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <label class="text-sm font-medium text-gray-700 ml-4">Filter by Product:</label>
+                <select id="productFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" data-category="{{ product.category.id }}">{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                                    <button type="button" id="saveAllBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-medium transition-colors" disabled>
+                        💾 Save All Prices
+                    </button>
+                    
+                <button id="autoSaveToggle" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                    🔄 Auto-Save: ON
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Grid -->
+    <div class="excel-submission-grid">
+        <table class="grid-table">
+            <thead>
+                <tr>
+                    <th class="farmer-header">
+                        <div>Product</div>
+                        <div class="text-xs font-normal text-green-100 mt-1">{{ products|length }} items</div>
+                    </th>
+                    {% for farmer in region_farmers %}
+                        <th class="farmer-header-cell" data-farmer="{{ farmer.id }}">
+                            <div class="font-bold">{{ farmer.name }}</div>
+                            <div class="text-xs font-normal opacity-90">{{ farmer.location.name }}</div>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+                {% for product in products %}
+                    <tr class="product-row" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                        <td class="product-cell">
+                            <div class="font-semibold text-gray-900">{{ product.name }}</div>
+                            <div class="product-info text-xs text-gray-600">{{ product.category.name }}</div>
+                        </td>
+                        {% for farmer in region_farmers %}
+                            <td class="price-cell" data-farmer="{{ farmer.id }}" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                                <input type="number" 
+                                       class="price-input" 
+                                       placeholder="₹"
+                                       step="0.01"
+                                       min="0.01"
+                                       data-farmer="{{ farmer.id }}"
+                                       data-product="{{ product.id }}"
+                                       data-product-name="{{ product.name }}"
+                                       data-farmer-name="{{ farmer.name }}"
+                                       data-date="{% now 'Y-m-d' %}"
+                                       data-category="{{ product.category.id }}"
+                                       autocomplete="off">
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Statistics Panel -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div class="stat-value" id="totalEntries">0</div>
+            <div class="stat-label">Total Entries</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="todayEntries">0</div>
+            <div class="stat-label">Today's Entries</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="farmersWithData">0</div>
+            <div class="stat-label">Farmers with Data</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="avgPrice">₹0</div>
+            <div class="stat-label">Avg Price</div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <div class="text-lg font-medium">Saving prices...</div>
+        <div class="text-sm text-gray-600 mt-2">Please wait while we update your submissions</div>
+    </div>
+</div>
+
+<!-- Success Indicator -->
+<div class="save-indicator" id="saveIndicator">
+    ✅ Prices saved successfully!
+</div>
+
+<!-- Auto-save Indicator -->
+<div class="auto-save-indicator" id="autoSaveIndicator">
+    🔄 Auto-saving...
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const productFilter = document.getElementById('productFilter');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    
+    let autoSaveEnabled = true;
+    let autoSaveTimeout = null;
+    let changedEntries = new Map();
+    let originalValues = new Map(); // Track original loaded values
+    
+    // Enable all inputs on page load since we now show all farmers as columns
+    const inputs = document.querySelectorAll('.price-input');
+    inputs.forEach(input => {
+        input.disabled = false;
+    });
+    saveAllBtn.disabled = false;
+    
+    // Function to load existing data for all farmers
+    function loadFarmerData(farmerId) {
+        // Show loading state
+        const indicator = document.getElementById('autoSaveIndicator');
+        indicator.style.display = 'block';
+        indicator.textContent = '📥 Loading farmer data...';
+        
+        console.log('Loading data for farmer ID:', farmerId);
+        
+        // Fetch existing price data for this farmer
+        fetch(`{% url "core:farmer_data" %}?farmer_id=${farmerId}`)
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                indicator.style.display = 'none';
+                console.log('Received data:', data);
+                
+                if (data.success && data.prices && data.prices.length > 0) {
+                    let loadedCount = 0;
+                    
+                    // Create a map to avoid duplicate entries (in case of multiple submissions for same date/product)
+                    const priceMap = new Map();
+                    data.prices.forEach(priceData => {
+                        const key = `${priceData.date}_${priceData.product_id}`;
+                        priceMap.set(key, priceData);
+                    });
+                    
+                    console.log('Price map:', priceMap);
+                    console.log('Current farmer ID for loading:', currentFarmer);
+                    console.log('Sample data structure:', Array.from(priceMap.entries())[0]);
+                    
+                    // Load the data into inputs and track original values
+                    priceMap.forEach(priceData => {
+                        // Try multiple selector approaches for debugging
+                        let input = document.querySelector(
+                            `input[data-date="${priceData.date}"][data-product="${priceData.product_id}"]`
+                        );
+                        
+                        if (!input) {
+                            // Try alternative selector
+                            input = document.querySelector(
+                                `.price-input[data-date="${priceData.date}"][data-product="${priceData.product_id}"]`
+                            );
+                        }
+                        
+                        console.log(`Looking for input with date=${priceData.date}, product=${priceData.product_id}`);
+                        console.log('Found input:', input);
+                        console.log('Input disabled?', input ? input.disabled : 'N/A');
+                        console.log('Input classes:', input ? input.className : 'N/A');
+                        
+                        if (input) {
+                            console.log(`Setting value ${priceData.price} for ${priceData.product_name} on ${priceData.date}`);
+                            input.value = priceData.price;
+                            input.classList.add('pending'); // Mark as existing data
+                            
+                            // Track original value for change detection
+                            const key = `${priceData.date}_${currentFarmer}_${priceData.product_id}`;
+                            originalValues.set(key, priceData.price);
+                            
+                            loadedCount++;
+                            console.log(`Successfully loaded price ${priceData.price} for ${priceData.product_name} on ${priceData.date}`);
+                        } else {
+                            console.warn(`Input not found for date=${priceData.date}, product=${priceData.product_id}`);
+                            
+                            // Debug: List all available inputs to see what's there
+                            const allInputs = document.querySelectorAll('.price-input');
+                            console.log('Available inputs:', Array.from(allInputs).map(inp => ({
+                                date: inp.dataset.date,
+                                product: inp.dataset.product,
+                                disabled: inp.disabled
+                            })));
+                        }
+                    });
+                    
+                    if (loadedCount > 0) {
+                        showSaveMessage(`✅ Loaded ${loadedCount} existing prices for ${data.farmer_name}`);
+                    } else {
+                        showSaveMessage(`⚠️ Found ${data.prices.length} prices but couldn't load any into form`, true);
+                    }
+                } else if (data.success) {
+                    console.log('No prices found for farmer');
+                    showSaveMessage(`ℹ️ No existing prices found for ${data.farmer_name || 'this farmer'}`);
+                } else {
+                    console.error('API error:', data.error);
+                    showSaveMessage(`⚠️ ${data.error || 'Error loading farmer data'}`, true);
+                }
+                updateStatistics();
+            })
+            .catch(error => {
+                indicator.style.display = 'none';
+                console.error('Fetch error:', error);
+                showSaveMessage(`⚠️ Could not load farmer data - starting fresh`, true);
+            });
+    }
+    
+    // Category filtering
+    categoryFilter.addEventListener('change', function() {
+        const selectedCategory = this.value;
+        const headers = document.querySelectorAll('.product-header');
+        const cells = document.querySelectorAll('.price-cell');
+        
+        headers.forEach((header, index) => {
+            const categoryId = header.dataset.category;
+            const shouldShow = !selectedCategory || categoryId === selectedCategory;
+            
+            header.style.display = shouldShow ? '' : 'none';
+            
+            // Hide corresponding cells in all rows
+            cells.forEach(cell => {
+                if (cell.dataset.category === categoryId) {
+                    cell.style.display = shouldShow ? '' : 'none';
+                }
+            });
+        });
+        
+        // Update product filter options based on selected category
+        updateProductFilter(selectedCategory);
+        
+        updateStatistics();
+    });
+    
+    // Product filtering
+    productFilter.addEventListener('change', function() {
+        const selectedProduct = this.value;
+        const headers = document.querySelectorAll('.product-header');
+        const cells = document.querySelectorAll('.price-cell');
+        
+        headers.forEach((header, index) => {
+            const productId = header.dataset.product;
+            const shouldShow = !selectedProduct || productId === selectedProduct;
+            
+            header.style.display = shouldShow ? '' : 'none';
+            
+            // Hide corresponding cells in all rows
+            cells.forEach(cell => {
+                if (cell.dataset.product === productId) {
+                    cell.style.display = shouldShow ? '' : 'none';
+                }
+            });
+        });
+        
+        updateStatistics();
+    });
+    
+    // Function to update product filter based on category selection
+    function updateProductFilter(selectedCategory) {
+        const productOptions = productFilter.querySelectorAll('option[data-category]');
+        
+        productOptions.forEach(option => {
+            const optionCategory = option.dataset.category;
+            const shouldShow = !selectedCategory || optionCategory === selectedCategory;
+            option.style.display = shouldShow ? '' : 'none';
+        });
+        
+        // Reset product filter if current selection is not visible
+        if (selectedCategory && productFilter.value) {
+            const currentOption = productFilter.querySelector(`option[value="${productFilter.value}"]`);
+            if (currentOption && currentOption.dataset.category !== selectedCategory) {
+                productFilter.value = '';
+                // Trigger product filter change to show all products in the selected category
+                productFilter.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+    
+    // Auto-save toggle
+    autoSaveToggle.addEventListener('click', function() {
+        autoSaveEnabled = !autoSaveEnabled;
+        this.textContent = autoSaveEnabled ? '🔄 Auto-Save: ON' : '⏸️ Auto-Save: OFF';
+        this.className = autoSaveEnabled ? 
+            'bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm transition-colors' :
+            'bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm transition-colors';
+    });
+    
+    // Price input handling with auto-save
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('price-input')) {
+            const input = e.target;
+            const farmerId = input.dataset.farmer;
+            const productId = input.dataset.product;
+            const value = parseFloat(input.value);
+            
+            // Use today's date automatically
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            if (!farmerId) return;
+            
+            const key = `${today}_${farmerId}_${productId}`;
+            
+            // Update visual state
+            if (value && value > 0) {
+                input.classList.add('has-value');
+                changedEntries.set(key, {
+                    date: today,
+                    farmer_id: farmerId,
+                    product_id: productId,
+                    price: value,
+                    farmer_name: input.dataset.farmerName || 'Unknown Farmer',
+                    product_name: input.dataset.productName
+                });
+            } else {
+                input.classList.remove('has-value');
+                changedEntries.delete(key);
+            }
+            
+            updateStatistics();
+            
+            // Auto-save after 1 second of no typing (faster save for better persistence)
+            if (autoSaveEnabled && value && value > 0) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = setTimeout(() => {
+                    autoSaveSingle(key, changedEntries.get(key));
+                }, 1000);  // Reduced to 1 second for faster saving
+            }
+        }
+    });
+    
+    // Auto-save when user moves away from a field (blur event)
+    document.addEventListener('blur', function(e) {
+        if (e.target.classList.contains('price-input')) {
+            const input = e.target;
+            const farmerId = input.dataset.farmer;
+            const productId = input.dataset.product;
+            const value = parseFloat(input.value);
+            
+            // Use today's date automatically
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            if (!farmerId || !value || value <= 0) return;
+            
+            const key = `${today}_${farmerId}_${productId}`;
+            const entry = changedEntries.get(key);
+            
+            // If there's a pending entry and auto-save is enabled, save immediately
+            if (autoSaveEnabled && entry) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveSingle(key, entry);
+            }
+        }
+    }, true);
+    
+    // Excel-like navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.target.classList.contains('price-input') && !e.target.disabled) {
+            const input = e.target;
+            const cell = input.closest('td');
+            const row = cell.closest('tr');
+            
+            switch(e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    moveToNextRow(row, cell);
+                    break;
+                    
+                case 'Tab':
+                    if (!e.shiftKey) {
+                        e.preventDefault();
+                        moveToNextCell(row, cell, 1);
+                    } else {
+                        e.preventDefault();
+                        moveToNextCell(row, cell, -1);
+                    }
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    moveToNextRow(row, cell, -1);
+                    break;
+                    
+                case 'ArrowDown':
+                    e.preventDefault();
+                    moveToNextRow(row, cell, 1);
+                    break;
+                    
+                case 'ArrowLeft':
+                    if (input.selectionStart === 0) {
+                        e.preventDefault();
+                        moveToNextCell(row, cell, -1);
+                    }
+                    break;
+                    
+                case 'ArrowRight':
+                    if (input.selectionStart === input.value.length) {
+                        e.preventDefault();
+                        moveToNextCell(row, cell, 1);
+                    }
+                    break;
+            }
+        }
+    });
+    
+    // Save all prices
+    saveAllBtn.addEventListener('click', function() {
+        // Collect ALL entries with values from all farmers
+        const allEntries = [];
+        const inputs = document.querySelectorAll('.price-input:not(:disabled)');
+        
+        inputs.forEach(input => {
+            const value = parseFloat(input.value);
+            if (value && value > 0) {
+                const date = input.dataset.date;
+                const productId = input.dataset.product;
+                const farmerId = input.dataset.farmer;
+                
+                allEntries.push({
+                    date: date,
+                    farmer_id: farmerId,
+                    product_id: productId,
+                    price: value,
+                    farmer_name: input.dataset.farmerName,
+                    product_name: input.dataset.productName
+                });
+            }
+        });
+        
+        if (allEntries.length === 0) {
+            showSaveMessage('No prices entered to save!', true);
+            return;
+        }
+        
+        // Show informative message about what's being saved
+        console.log('Saving entries:', allEntries);
+        showSaveMessage(`💾 Saving ${allEntries.length} price entries...`);
+        
+        saveAllPrices(allEntries);
+    });
+    
+    function moveToNextCell(currentRow, currentCell, direction) {
+        const cells = Array.from(currentRow.querySelectorAll('.price-cell:not([style*="display: none"])'));
+        const currentIndex = cells.indexOf(currentCell);
+        const nextIndex = currentIndex + direction;
+        
+        if (nextIndex >= 0 && nextIndex < cells.length) {
+            const nextInput = cells[nextIndex].querySelector('.price-input:not(:disabled)');
+            if (nextInput) nextInput.focus();
+        } else if (direction > 0) {
+            // Move to first cell of next row
+            moveToNextRow(currentRow, currentCell, 1, 0);
+        } else {
+            // Move to last cell of previous row
+            moveToNextRow(currentRow, currentCell, -1, -1);
+        }
+    }
+    
+    function moveToNextRow(currentRow, currentCell, direction = 1, cellIndex = null) {
+        const rows = Array.from(document.querySelectorAll('.date-row'));
+        const currentIndex = rows.indexOf(currentRow);
+        const nextIndex = currentIndex + direction;
+        
+        if (nextIndex >= 0 && nextIndex < rows.length) {
+            const nextRow = rows[nextIndex];
+            const cells = nextRow.querySelectorAll('.price-cell:not([style*="display: none"])');
+            
+            if (cellIndex === null) {
+                // Same column
+                const currentCellIndex = Array.from(currentRow.querySelectorAll('.price-cell:not([style*="display: none"])')).indexOf(currentCell);
+                cellIndex = currentCellIndex;
+            } else if (cellIndex === -1) {
+                // Last cell
+                cellIndex = cells.length - 1;
+            }
+            
+            if (cells[cellIndex]) {
+                const nextInput = cells[cellIndex].querySelector('.price-input:not(:disabled)');
+                if (nextInput) nextInput.focus();
+            }
+        }
+    }
+    
+    function autoSaveSingle(key, entry) {
+        if (!entry) return;
+        
+        const indicator = document.getElementById('autoSaveIndicator');
+        indicator.style.display = 'block';
+        
+        // Show which field is being saved
+        const input = document.querySelector(`[data-date="${entry.date}"][data-product="${entry.product_id}"]`);
+        if (input) {
+            input.classList.add('saving');
+        }
+        
+        fetch('{% url "core:excel_save" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ entries: [entry] })
+        })
+        .then(response => {
+            return response.json();
+        })
+        .then(data => {
+            indicator.style.display = 'none';
+            
+            if (data.success) {
+                // Mark as saved with visual feedback and keep value visible
+                if (input) {
+                    input.classList.remove('saving');
+                    input.classList.add('saved');
+                    
+                    // After brief saved indication, mark as persistent data
+                    setTimeout(() => {
+                        input.classList.remove('saved');
+                        input.classList.add('pending');
+                    }, 1500);
+                }
+                
+                // Remove from changed entries since it's now saved
+                // But keep the value in the field for persistence
+                changedEntries.delete(key);
+                updateStatistics();
+                
+                // Show success message briefly
+                showSaveMessage(`✅ Saved: ${entry.product_name} - ₹${entry.price}`);
+            } else {
+                if (input) {
+                    input.classList.remove('saving');
+                    input.classList.add('error');
+                    setTimeout(() => input.classList.remove('error'), 3000);
+                }
+                showSaveMessage(`❌ Failed to save: ${entry.product_name}`, true);
+            }
+        })
+        .catch(error => {
+            indicator.style.display = 'none';
+            if (input) {
+                input.classList.remove('saving');
+                input.classList.add('error');
+                setTimeout(() => input.classList.remove('error'), 3000);
+            }
+            console.error('Auto-save failed:', error);
+            showSaveMessage(`❌ Auto-save failed: ${entry.product_name}`, true);
+        });
+    }
+    
+    function showSaveMessage(message, isError = false) {
+        const indicator = document.getElementById('saveIndicator');
+        indicator.textContent = message;
+        indicator.className = isError ? 'bg-red-500 text-white px-3 py-1 rounded-md text-sm' : 'bg-green-500 text-white px-3 py-1 rounded-md text-sm';
+        indicator.style.display = 'block';
+        
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 3000);
+    }
+    
+    function saveAllPrices(allEntries = null) {
+        // Use provided entries or fall back to changed entries
+        const entries = allEntries || Array.from(changedEntries.values());
+        
+        if (entries.length === 0) {
+            showSaveMessage('All entries are already saved!');
+            return;
+        }
+        
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        fetch('{% url "core:excel_save" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ entries: entries })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            if (data.success) {
+                const message = `✅ Bulk Save Complete: ${data.saved_count} new prices saved, ${data.updated_count} prices updated`;
+                showSaveMessage(message);
+                
+                // Mark all as saved
+                entries.forEach(entry => {
+                    const input = document.querySelector(`[data-date="${entry.date}"][data-product="${entry.product_id}"]`);
+                    if (input) {
+                        input.classList.remove('has-value', 'saving');
+                        input.classList.add('saved');
+                        
+                        setTimeout(() => {
+                            input.classList.remove('saved');
+                            input.classList.add('pending');
+                        }, 2000);
+                    }
+                });
+                
+                changedEntries.clear();
+                updateStatistics();
+                
+                if (data.errors && data.errors.length > 0) {
+                    setTimeout(() => {
+                        showSaveMessage('⚠️ Some entries had issues: ' + data.errors.join(', '), true);
+                    }, 3500);
+                }
+            } else {
+                showSaveMessage('❌ Bulk save failed: ' + data.error, true);
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            showSaveMessage('❌ Network error during bulk save', true);
+            console.error('Bulk save error:', error);
+        });
+    }
+    
+    function updateStatistics() {
+        const allInputs = document.querySelectorAll('.price-input:not(:disabled)');
+        const visibleInputs = Array.from(allInputs).filter(input => {
+            const cell = input.closest('td');
+            return cell.style.display !== 'none';
+        });
+        
+        const filledInputs = visibleInputs.filter(input => input.value && parseFloat(input.value) > 0);
+        const todayInputs = filledInputs.filter(input => input.dataset.date === '{{ today|date:"Y-m-d" }}');
+        
+        const prices = [];
+        filledInputs.forEach(input => {
+            prices.push(parseFloat(input.value));
+        });
+        
+        const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+        
+        // Count unique farmers with data
+        const farmersWithData = new Set();
+        filledInputs.forEach(input => {
+            const farmerId = input.dataset.farmer;
+            if (farmerId) farmersWithData.add(farmerId);
+        });
+        
+        document.getElementById('totalEntries').textContent = filledInputs.length;
+        document.getElementById('todayEntries').textContent = todayInputs.length;
+        document.getElementById('farmersWithData').textContent = farmersWithData.size;
+        document.getElementById('avgPrice').textContent = '₹' + avgPrice.toFixed(2);
+    }
+    
+    // Initial statistics update and auto-load if farmer is pre-selected
+    updateStatistics();
+    
+    // Load existing data for today when page loads
+    loadTodaysData();
+});
+
+function loadTodaysData() {
+    const today = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
+    
+    // Get all input fields
+    const allInputs = document.querySelectorAll('.price-input');
+    
+    allInputs.forEach(input => {
+        const farmerId = input.dataset.farmer;
+        const productId = input.dataset.product;
+        
+        if (farmerId && productId) {
+            // Load existing price for this farmer-product combination for today
+            fetch('{% url "core:excel_get_price" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    farmer_id: farmerId,
+                    product_id: productId,
+                    date: today
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.price) {
+                    input.value = data.price;
+                    input.classList.add('has-value', 'saved');
+                    
+                    // Update statistics after loading data
+                    updateStatistics();
+                }
+            })
+            .catch(error => {
+                // Silently ignore errors for missing data
+                console.log('No existing data for farmer', farmerId, 'product', productId);
+            });
+        }
+    });
+}
+
+</script>
+{% endblock %}

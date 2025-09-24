@@ -1,0 +1,530 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Bulk Price Entry - Excel Style{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excel-grid {
+        overflow-x: auto;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: white;
+    }
+    
+    .grid-table {
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .grid-table th {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        padding: 8px 12px;
+        font-weight: 600;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .grid-table td {
+        border: 1px solid #e5e7eb;
+        padding: 2px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    
+    .grid-table th.product-header {
+        background: #3b82f6;
+        color: white;
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 180px;
+        text-align: left;
+    }
+    
+    .grid-table td.product-cell {
+        background: #f8fafc;
+        position: sticky;
+        left: 0;
+        z-index: 15;
+        min-width: 180px;
+        text-align: left;
+        font-weight: 500;
+        padding: 8px 12px;
+    }
+    
+    .date-header {
+        background: #1e40af !important;
+        color: white;
+        min-width: 120px;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+    }
+    
+    .price-input {
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: center;
+        padding: 6px 4px;
+        font-size: 14px;
+        border-radius: 4px;
+    }
+    
+    .price-input:focus {
+        background: #dbeafe;
+        outline: 2px solid #3b82f6;
+    }
+    
+    .price-input.has-value {
+        background: #dcfce7;
+        font-weight: 500;
+    }
+    
+    .price-input.pending {
+        background: #fef3c7;
+    }
+    
+    .price-input.approved {
+        background: #d1fae5;
+        cursor: not-allowed;
+    }
+    
+    .category-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #e0e7ff;
+        color: #3730a3;
+        border-radius: 12px;
+        font-size: 11px;
+        margin-right: 8px;
+    }
+    
+    .farmer-selector {
+        margin-bottom: 20px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .filter-section {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        display: none;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Bulk Price Entry</h1>
+        <p class="text-gray-600">Excel-like interface for quick price entry across multiple products and dates</p>
+    </div>
+
+    <!-- Filters and Controls -->
+    <div class="farmer-selector">
+        <div class="filter-section">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category Filter</label>
+                <select id="categoryFilter" class="border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Location Filter</label>
+                <select id="locationFilter" class="border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Locations</option>
+                    {% regroup farmers by location as location_groups %}
+                    {% for location_group in location_groups %}
+                        <option value="{{ location_group.grouper.id }}">{{ location_group.grouper.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Farmer</label>
+                <select id="farmerSelect" class="border border-gray-300 rounded-md px-3 py-2" required>
+                    <option value="">Select Farmer</option>
+                    {% for farmer in farmers %}
+                        <option value="{{ farmer.id }}" data-location="{{ farmer.location.id }}">
+                            {{ farmer.name }} ({{ farmer.location.name }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Default Unit</label>
+                <select id="defaultUnit" class="border border-gray-300 rounded-md px-3 py-2">
+                    {% for value, label in units %}
+                        <option value="{{ value }}" {% if value == 'kg' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="flex gap-2 items-end">
+                <button id="saveAllBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md disabled:opacity-50" disabled>
+                    💾 Save All
+                </button>
+                <button id="clearAllBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md">
+                    🗑️ Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel-like Grid -->
+    <div class="excel-grid">
+        <table class="grid-table">
+            <thead>
+                <tr>
+                    <th class="product-header">Product</th>
+                    {% for date in date_range %}
+                        <th class="date-header">
+                            {{ date|date:"M d" }}<br>
+                            <span class="text-xs">{{ date|date:"D" }}</span>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+                {% for product in products %}
+                    <tr class="product-row" data-category="{{ product.category.id }}">
+                        <td class="product-cell">
+                            <span class="category-badge">{{ product.category.name }}</span>
+                            <span class="font-medium">{{ product.name }}</span>
+                        </td>
+                        {% for date in date_range %}
+                                <td class="price-cell" data-date="{{ date|date:"Y-m-d" }}" data-product="{{ product.id }}">
+                                    <input type="number" 
+                                           class="price-input" 
+                                           placeholder="₹"
+                                           step="0.01"
+                                           min="0.01"
+                                           data-date="{{ date|date:"Y-m-d" }}"
+                                           data-product="{{ product.id }}"
+                                           data-product-name="{{ product.name }}">
+                                </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+        <div class="flex justify-between items-center">
+            <div class="text-sm text-gray-600">
+                <span id="entryCount">0</span> entries ready to save
+            </div>
+            <div class="flex gap-4 text-sm">
+                <span class="flex items-center">
+                    <div class="w-4 h-4 bg-green-200 rounded mr-2"></div>
+                    Has Value
+                </span>
+                <span class="flex items-center">
+                    <div class="w-4 h-4 bg-yellow-200 rounded mr-2"></div>
+                    Pending
+                </span>
+                <span class="flex items-center">
+                    <div class="w-4 h-4 bg-green-300 rounded mr-2"></div>
+                    Approved
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+        <div>Saving prices...</div>
+    </div>
+</div>
+
+<!-- Save Success Indicator -->
+<div class="save-indicator" id="saveIndicator">
+    ✅ Prices saved successfully!
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const farmerSelect = document.getElementById('farmerSelect');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const locationFilter = document.getElementById('locationFilter');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const gridBody = document.getElementById('gridBody');
+    const entryCount = document.getElementById('entryCount');
+    const defaultUnit = document.getElementById('defaultUnit');
+    
+    let currentFarmer = null;
+    let changedEntries = new Set();
+    
+    // Farmer selection handler
+    farmerSelect.addEventListener('change', function() {
+        currentFarmer = this.value;
+        saveAllBtn.disabled = !currentFarmer;
+        updateGridVisibility();
+        loadExistingPrices();
+    });
+    
+    // Category filter
+    categoryFilter.addEventListener('change', function() {
+        const selectedCategory = this.value;
+        const rows = document.querySelectorAll('.product-row');
+        
+        rows.forEach(row => {
+            if (!selectedCategory || row.dataset.category === selectedCategory) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+    
+    // Location filter for farmers
+    locationFilter.addEventListener('change', function() {
+        const selectedLocation = this.value;
+        const options = farmerSelect.querySelectorAll('option');
+        
+        // Reset farmer selection
+        farmerSelect.value = '';
+        currentFarmer = null;
+        saveAllBtn.disabled = true;
+        
+        options.forEach(option => {
+            if (option.value === '') {
+                option.style.display = '';
+                return;
+            }
+            
+            if (!selectedLocation || option.dataset.location === selectedLocation) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+    
+    // Price input handlers
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('price-input')) {
+            const input = e.target;
+            const date = input.dataset.date;
+            const productId = input.dataset.product;
+            const value = input.value;
+            
+            // Update visual state
+            if (value && value > 0) {
+                input.classList.add('has-value');
+                changedEntries.add(`${date}_${productId}`);
+            } else {
+                input.classList.remove('has-value');
+                changedEntries.delete(`${date}_${productId}`);
+            }
+            
+            updateEntryCount();
+        }
+    });
+    
+    // Keyboard navigation (Excel-like)
+    document.addEventListener('keydown', function(e) {
+        if (e.target.classList.contains('price-input')) {
+            const input = e.target;
+            const cell = input.closest('td');
+            const row = cell.closest('tr');
+            
+            switch(e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    // Move down
+                    const nextRow = row.nextElementSibling;
+                    if (nextRow) {
+                        const cellIndex = Array.from(row.children).indexOf(cell);
+                        const nextInput = nextRow.children[cellIndex]?.querySelector('.price-input');
+                        if (nextInput && !nextInput.readOnly) nextInput.focus();
+                    }
+                    break;
+                    
+                case 'Tab':
+                    // Default tab behavior (move right/left)
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    const prevRow = row.previousElementSibling;
+                    if (prevRow) {
+                        const cellIndex = Array.from(row.children).indexOf(cell);
+                        const prevInput = prevRow.children[cellIndex]?.querySelector('.price-input');
+                        if (prevInput && !prevInput.readOnly) prevInput.focus();
+                    }
+                    break;
+                    
+                case 'ArrowDown':
+                    e.preventDefault();
+                    const downRow = row.nextElementSibling;
+                    if (downRow) {
+                        const cellIndex = Array.from(row.children).indexOf(cell);
+                        const downInput = downRow.children[cellIndex]?.querySelector('.price-input');
+                        if (downInput && !downInput.readOnly) downInput.focus();
+                    }
+                    break;
+            }
+        }
+    });
+    
+    // Save all prices
+    saveAllBtn.addEventListener('click', function() {
+        if (!currentFarmer) {
+            alert('Please select a farmer first');
+            return;
+        }
+        
+        const entries = [];
+        const inputs = document.querySelectorAll('.price-input.has-value');
+        
+        inputs.forEach(input => {
+            const value = parseFloat(input.value);
+            if (value && value > 0 && !input.readOnly) {
+                entries.push({
+                    date: input.dataset.date,
+                    product_id: input.dataset.product,
+                    farmer_id: currentFarmer,
+                    price: value,
+                    quantity: 1, // Default quantity
+                    unit: defaultUnit.value
+                });
+            }
+        });
+        
+        if (entries.length === 0) {
+            alert('No valid entries to save');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        // Save entries
+        fetch('{% url "submissions:bulk_save" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ entries: entries })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            if (data.success) {
+                // Show success message
+                const indicator = document.getElementById('saveIndicator');
+                indicator.textContent = `✅ Saved ${data.saved_count} new, updated ${data.updated_count}`;
+                indicator.style.display = 'block';
+                setTimeout(() => indicator.style.display = 'none', 3000);
+                
+                // Clear changed entries
+                changedEntries.clear();
+                updateEntryCount();
+                
+                // Mark saved inputs as pending
+                inputs.forEach(input => {
+                    if (!input.readOnly) {
+                        input.classList.add('pending');
+                    }
+                });
+                
+                // Show errors if any
+                if (data.errors && data.errors.length > 0) {
+                    alert('Some entries had issues:\n' + data.errors.join('\n'));
+                }
+            } else {
+                alert('Error saving prices: ' + data.error);
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert('Error saving prices: ' + error);
+        });
+    });
+    
+    // Clear all entries
+    clearAllBtn.addEventListener('click', function() {
+        if (confirm('Clear all entries? This cannot be undone.')) {
+            const inputs = document.querySelectorAll('.price-input');
+            inputs.forEach(input => {
+                if (!input.readOnly) {
+                    input.value = '';
+                    input.classList.remove('has-value');
+                }
+            });
+            changedEntries.clear();
+            updateEntryCount();
+        }
+    });
+    
+    function updateEntryCount() {
+        entryCount.textContent = changedEntries.size;
+    }
+    
+    function updateGridVisibility() {
+        // Could add logic to show/hide grid based on farmer selection
+    }
+    
+    function loadExistingPrices() {
+        // This would be enhanced to load existing prices for the selected farmer
+        // For now, existing prices are loaded from the template context
+    }
+});
+</script>
+{% endblock %}
