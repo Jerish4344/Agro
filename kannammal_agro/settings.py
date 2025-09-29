@@ -22,6 +22,7 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -33,6 +34,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -66,15 +68,22 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME', 'agro'),
-        'USER': os.getenv('DB_USER', 'root'),
+        'USER': os.getenv('DB_USER', 'agro_user'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'HOST': os.getenv('DB_HOST', '192.168.2.77'),
         'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
     }
+}
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Kannammal Agro Admin",
+    "site_header": "Kannammal Agro Admin",
+    "site_brand": "Kannammal Agro",
+    "welcome_sign": "Welcome to Kannammal Agro Admin",
 }
 
 # Password validation
@@ -106,6 +115,9 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# WhiteNoise settings for better static file serving
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -126,6 +138,8 @@ SESSION_SAVE_EVERY_REQUEST = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+    'https://agro.jeyarama.com',
+    'http://agro.jeyarama.com',
 ]
 
 # Logging

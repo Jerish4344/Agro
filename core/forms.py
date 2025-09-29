@@ -10,7 +10,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from .models import (
-    PriceSubmission, Firm, Location, Farmer, ProductCategory, 
+    PriceSubmission, Firm, Location, Farmer, ProductCategory, MainCategory, SubCategory,
     Product, UserProfile
 )
 
@@ -18,10 +18,29 @@ from .models import (
 class BuyerSubmissionForm(forms.ModelForm):
     """Form for buyers to submit price data"""
     
+    # Add hierarchical category fields
+    main_category = forms.ModelChoiceField(
+        queryset=MainCategory.objects.all(),
+        empty_label="Select Main Category",
+        widget=forms.Select(attrs={
+            'class': 'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm'
+        }),
+        required=False  # We'll make it required in clean() if needed
+    )
+    
+    sub_category = forms.ModelChoiceField(
+        queryset=SubCategory.objects.all(),
+        empty_label="Select Sub Category",
+        widget=forms.Select(attrs={
+            'class': 'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm'
+        }),
+        required=False  # We'll make it required in clean() if needed
+    )
+    
     class Meta:
         model = PriceSubmission
         fields = [
-            'date', 'firm', 'location', 'farmer', 'category', 
+            'date', 'firm', 'location', 'farmer', 'category', 'main_category', 'sub_category',
             'product', 'price_per_unit', 'quantity', 'unit', 'notes'
         ]
         widgets = {
@@ -129,18 +148,44 @@ class BuyerSubmissionForm(forms.ModelForm):
         return date
     
     def clean(self):
-        """Cross-field validation"""
+        """Cross-field validation including hierarchical structure"""
         cleaned_data = super().clean()
         product = cleaned_data.get('product')
         category = cleaned_data.get('category')
+        main_category = cleaned_data.get('main_category')
+        sub_category = cleaned_data.get('sub_category')
         farmer = cleaned_data.get('farmer')
         location = cleaned_data.get('location')
         
-        # Ensure product belongs to selected category
-        if product and category and product.category != category:
-            raise ValidationError({
-                'product': f'Product "{product.name}" does not belong to category "{category.name}"'
-            })
+        # Hierarchical validation
+        if product:
+            # If product is selected, ensure all hierarchical fields match
+            if category and product.category != category:
+                raise ValidationError({
+                    'product': f'Product "{product.name}" does not belong to category "{category.name}"'
+                })
+            
+            if main_category and product.main_category and product.main_category != main_category:
+                raise ValidationError({
+                    'product': f'Product "{product.name}" does not belong to main category "{main_category.name}"'
+                })
+            
+            if sub_category and product.sub_category and product.sub_category != sub_category:
+                raise ValidationError({
+                    'product': f'Product "{product.name}" does not belong to sub category "{sub_category.name}"'
+                })
+        
+        # Ensure sub category belongs to selected category and main category
+        if sub_category:
+            if category and sub_category.category != category:
+                raise ValidationError({
+                    'sub_category': f'Sub category "{sub_category.name}" does not belong to category "{category.name}"'
+                })
+            
+            if main_category and sub_category.main_category != main_category:
+                raise ValidationError({
+                    'sub_category': f'Sub category "{sub_category.name}" does not belong to main category "{main_category.name}"'
+                })
         
         # Ensure farmer belongs to selected location
         if farmer and location and farmer.location != location:

@@ -135,7 +135,7 @@
                         <select id="{{ form.category.id_for_label }}"
                                 name="{{ form.category.name }}"
                                 required
-                                onchange="updateProductOptions()"
+                                onchange="updateCascadingFilters()"
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
                                        {% if form.category.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
                             <option value="">Select a category</option>
@@ -148,6 +148,54 @@
                         </select>
                         {% if form.category.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.category.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Main Category -->
+                    <div>
+                        <label for="{{ form.main_category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Main Category
+                        </label>
+                        <select id="{{ form.main_category.id_for_label }}"
+                                name="{{ form.main_category.name }}"
+                                onchange="updateCascadingFilters()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.main_category.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select main category</option>
+                            {% for main_category in main_categories %}
+                            <option value="{{ main_category.id }}"
+                                    {% if form.main_category.value == main_category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ main_category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.main_category.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.main_category.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Sub Category -->
+                    <div>
+                        <label for="{{ form.sub_category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Sub Category
+                        </label>
+                        <select id="{{ form.sub_category.id_for_label }}"
+                                name="{{ form.sub_category.name }}"
+                                onchange="updateProductOptions()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
+                                       {% if form.sub_category.errors %}border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500{% endif %}">
+                            <option value="">Select sub category</option>
+                            {% for sub_category in sub_categories %}
+                            <option value="{{ sub_category.id }}" 
+                                    data-category="{{ sub_category.category.id }}"
+                                    data-main-category="{{ sub_category.main_category.id }}"
+                                    {% if form.sub_category.value == sub_category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ sub_category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.sub_category.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.sub_category.errors.0 }}</p>
                         {% endif %}
                     </div>
 
@@ -168,8 +216,11 @@
                                 {% for product in products %}
                                 <option value="{{ product.id }}" 
                                         data-unit="{{ product.unit }}"
+                                        data-category="{{ product.category.id }}"
+                                        data-main-category="{{ product.main_category.id|default:'' }}"
+                                        data-sub-category="{{ product.sub_category.id|default:'' }}"
                                         {% if form.product.value == product.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ product.name }}
+                                    {% if product.sub_category %}[{{ product.sub_category.name }}] {% endif %}{{ product.name }}
                                 </option>
                                 {% endfor %}
                             </optgroup>
@@ -389,14 +440,98 @@ const locationFarmerData = {
     {% endfor %}
 };
 
-// Update product options when category changes
+// Handle cascading filter updates
+function updateCascadingFilters() {
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    const mainCategorySelect = document.getElementById('{{ form.main_category.id_for_label }}');
+    const subCategorySelect = document.getElementById('{{ form.sub_category.id_for_label }}');
+    
+    const selectedCategory = categorySelect.value;
+    const selectedMainCategory = mainCategorySelect.value;
+    
+    // Update sub category options based on category and main category selection
+    const subCategoryOptions = subCategorySelect.querySelectorAll('option');
+    subCategoryOptions.forEach(option => {
+        if (option.value === '') {
+            option.style.display = '';
+            return;
+        }
+        
+        let show = true;
+        
+        // Filter by category
+        if (selectedCategory && option.dataset.category !== selectedCategory) {
+            show = false;
+        }
+        
+        // Filter by main category
+        if (selectedMainCategory && option.dataset.mainCategory !== selectedMainCategory) {
+            show = false;
+        }
+        
+        option.style.display = show ? '' : 'none';
+    });
+    
+    // Reset sub category if current selection is now hidden
+    const currentSubCategory = subCategorySelect.value;
+    if (currentSubCategory) {
+        const currentOption = subCategorySelect.querySelector(`option[value="${currentSubCategory}"]`);
+        if (currentOption && currentOption.style.display === 'none') {
+            subCategorySelect.value = '';
+        }
+    }
+    
+    // Update product options
+    updateProductOptions();
+}
+
+// Update product options when category/subcategory changes
 function updateProductOptions() {
     const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    const mainCategorySelect = document.getElementById('{{ form.main_category.id_for_label }}');
+    const subCategorySelect = document.getElementById('{{ form.sub_category.id_for_label }}');
     const productSelect = document.getElementById('{{ form.product.id_for_label }}');
-    const selectedCategoryId = categorySelect.value;
     
-    // Clear current product options
-    productSelect.innerHTML = '<option value="">Select a product</option>';
+    const selectedCategory = categorySelect.value;
+    const selectedMainCategory = mainCategorySelect.value;
+    const selectedSubCategory = subCategorySelect.value;
+    
+    // Filter product options based on hierarchical selection
+    const productOptions = productSelect.querySelectorAll('option');
+    productOptions.forEach(option => {
+        if (option.value === '') {
+            option.style.display = '';
+            return;
+        }
+        
+        let show = true;
+        
+        // Filter by category
+        if (selectedCategory && option.dataset.category !== selectedCategory) {
+            show = false;
+        }
+        
+        // Filter by main category
+        if (selectedMainCategory && option.dataset.mainCategory !== selectedMainCategory) {
+            show = false;
+        }
+        
+        // Filter by sub category
+        if (selectedSubCategory && option.dataset.subCategory !== selectedSubCategory) {
+            show = false;
+        }
+        
+        option.style.display = show ? '' : 'none';
+    });
+    
+    // Reset product selection if current selection is now hidden
+    const currentProduct = productSelect.value;
+    if (currentProduct) {
+        const currentOption = productSelect.querySelector(`option[value="${currentProduct}"]`);
+        if (currentOption && currentOption.style.display === 'none') {
+            productSelect.value = '';
+        }
+    }
     
     if (selectedCategoryId && categoryProductData[selectedCategoryId]) {
         categoryProductData[selectedCategoryId].forEach(function(product) {

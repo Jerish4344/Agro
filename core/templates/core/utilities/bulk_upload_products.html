@@ -1,0 +1,235 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Bulk Upload Products{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .upload-card {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .file-drop-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background: #f9fafb;
+        transition: all 0.3s ease;
+        margin-bottom: 24px;
+    }
+    
+    .file-drop-area:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .file-drop-area.dragover {
+        border-color: #3b82f6;
+        background: #dbeafe;
+    }
+    
+    .file-input {
+        display: none;
+    }
+    
+    .upload-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 16px;
+        color: #6b7280;
+    }
+    
+    .sample-format {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+    }
+    
+    .options-section {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 24px;
+        margin-top: 24px;
+    }
+    
+    .option-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .option-item input[type="checkbox"] {
+        margin-right: 12px;
+        width: 18px;
+        height: 18px;
+    }
+    
+    .warning-box {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+    
+    .info-box {
+        background: #dbeafe;
+        border: 1px solid #3b82f6;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="upload-container">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Bulk Upload Products</h1>
+            <p class="text-gray-600">Upload products from CSV file with hierarchical categories</p>
+        </div>
+
+        <div class="upload-card">
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+                {% csrf_token %}
+                
+                <!-- File Upload Area -->
+                <div class="file-drop-area" id="fileDropArea">
+                    <div class="upload-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Drop your CSV file here</h3>
+                    <p class="text-gray-600 mb-4">or click to browse</p>
+                    <input type="file" name="csv_file" accept=".csv" class="file-input" id="csvFile" required>
+                    <button type="button" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors" onclick="document.getElementById('csvFile').click()">
+                        Choose File
+                    </button>
+                    <div id="fileName" class="mt-3 text-sm text-gray-600"></div>
+                </div>
+
+                <!-- Sample Format -->
+                <div class="sample-format">
+                    <h4 class="font-semibold text-gray-900 mb-2">📋 Expected CSV Format</h4>
+                    <p class="text-sm text-gray-600 mb-3">Your CSV file must contain these exact headers:</p>
+                    <div class="bg-white p-3 rounded border font-mono text-sm">
+                        Name,Category,Main Cat.,Sub Cat<br>
+                        Apple Fuji,Fresh Fruit,Fruit N Vegetable,Apple N Pear<br>
+                        Banana Robusta,Fresh Fruit,Fruit N Vegetable,Bananas
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="options-section">
+                    <h4 class="font-semibold text-gray-900 mb-4">Upload Options</h4>
+                    
+                    <div class="option-item">
+                        <input type="checkbox" id="dryRun" name="dry_run">
+                        <label for="dryRun" class="text-gray-700">
+                            <strong>Dry Run</strong> - Preview changes without saving to database
+                        </label>
+                    </div>
+                    
+                    <div class="option-item">
+                        <input type="checkbox" id="clearExisting" name="clear_existing">
+                        <label for="clearExisting" class="text-gray-700">
+                            <strong>Clear Existing Products</strong> - Delete all products before import
+                        </label>
+                    </div>
+                    
+                    <div class="warning-box" id="clearWarning" style="display: none;">
+                        ⚠️ <strong>WARNING:</strong> This will permanently delete ALL existing products in the database. This action cannot be undone!
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="info-box">
+                    <h5 class="font-semibold text-blue-900 mb-2">ℹ️ How it works:</h5>
+                    <ul class="text-sm text-blue-800 space-y-1">
+                        <li>• Creates hierarchical categories (Category → Main Category → Sub Category)</li>
+                        <li>• Updates existing products with new category structure</li>
+                        <li>• Sets default unit as 'kg' for all products</li>
+                        <li>• Products are marked as active by default</li>
+                    </ul>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex gap-4 pt-6">
+                    <button type="submit" class="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                        Upload Products
+                    </button>
+                    <a href="{% url 'core:dashboard' %}" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileDropArea = document.getElementById('fileDropArea');
+    const fileInput = document.getElementById('csvFile');
+    const fileName = document.getElementById('fileName');
+    const clearExisting = document.getElementById('clearExisting');
+    const clearWarning = document.getElementById('clearWarning');
+    
+    // File input change handler
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            fileName.textContent = `Selected: ${this.files[0].name}`;
+            fileName.className = 'mt-3 text-sm text-green-600 font-medium';
+        }
+    });
+    
+    // Drag and drop handlers
+    fileDropArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    
+    fileDropArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    
+    fileDropArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files && files[0] && files[0].name.endsWith('.csv')) {
+            fileInput.files = files;
+            fileName.textContent = `Selected: ${files[0].name}`;
+            fileName.className = 'mt-3 text-sm text-green-600 font-medium';
+        } else {
+            alert('Please drop a CSV file.');
+        }
+    });
+    
+    // Clear existing warning
+    clearExisting.addEventListener('change', function() {
+        clearWarning.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Click to select file
+    fileDropArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+});
+</script>
+{% endblock %}

@@ -47,7 +47,7 @@
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="p-6">
             <form method="get" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                     <!-- Date Range -->
                     <div>
                         <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
@@ -86,11 +86,48 @@
                         <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
                         <select id="category" 
                                 name="category"
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                onchange="filterMainCategories()">
                             <option value="">All Categories</option>
                             {% for category in categories %}
                             <option value="{{ category.id }}" {% if request.GET.category == category.id|slugify %}selected{% endif %}>
                                 {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Main Category Filter -->
+                    <div>
+                        <label for="main_category" class="block text-sm font-medium text-gray-700 mb-1">Main Category</label>
+                        <select id="main_category" 
+                                name="main_category"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                onchange="filterSubCategories()">
+                            <option value="">All Main Categories</option>
+                            {% for main_category in main_categories %}
+                            <option value="{{ main_category.id }}" 
+                                    {% if request.GET.main_category == main_category.id|stringformat:"s" %}selected{% endif %}
+                                    data-category="{{ main_category.category.id }}">
+                                {{ main_category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Sub Category Filter -->
+                    <div>
+                        <label for="sub_category" class="block text-sm font-medium text-gray-700 mb-1">Sub Category</label>
+                        <select id="sub_category" 
+                                name="sub_category"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                onchange="filterProducts()">
+                            <option value="">All Sub Categories</option>
+                            {% for sub_category in sub_categories %}
+                            <option value="{{ sub_category.id }}" 
+                                    {% if request.GET.sub_category == sub_category.id|stringformat:"s" %}selected{% endif %}
+                                    data-main-category="{{ sub_category.main_category.id }}">
+                                {{ sub_category.name }}
                             </option>
                             {% endfor %}
                         </select>
@@ -104,8 +141,12 @@
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             <option value="">All Products</option>
                             {% for product in products %}
-                            <option value="{{ product.id }}" {% if request.GET.product == product.id|stringformat:"s" %}selected{% endif %} data-category="{{ product.category.id }}">
-                                {{ product.name }} - {{ product.category.name }}
+                            <option value="{{ product.id }}" 
+                                    {% if request.GET.product == product.id|stringformat:"s" %}selected{% endif %} 
+                                    data-category="{{ product.category.id }}"
+                                    data-main-category="{{ product.main_category.id|default:'' }}"
+                                    data-sub-category="{{ product.sub_category.id|default:'' }}">
+                                {{ product.name }}{% if product.sub_category %} - {{ product.sub_category.name }}{% elif product.main_category %} - {{ product.main_category.name }}{% else %} - {{ product.category.name }}{% endif %}
                             </option>
                             {% endfor %}
                         </select>
@@ -434,32 +475,110 @@
 </div>
 
 <script>
-// Dynamic product filtering based on category selection
+// Hierarchical category filtering system
 document.addEventListener('DOMContentLoaded', function() {
-    const categoryFilter = document.getElementById('category');
-    const productFilter = document.getElementById('product');
-    
-    if (categoryFilter && productFilter) {
-        categoryFilter.addEventListener('change', function() {
-            const selectedCategory = this.value;
-            const productOptions = productFilter.querySelectorAll('option[data-category]');
-            
-            productOptions.forEach(option => {
-                const optionCategory = option.dataset.category;
-                const shouldShow = !selectedCategory || optionCategory === selectedCategory;
-                option.style.display = shouldShow ? '' : 'none';
-            });
-            
-            // Reset product filter if current selection is not visible
-            if (selectedCategory && productFilter.value) {
-                const currentOption = productFilter.querySelector(`option[value="${productFilter.value}"]`);
-                if (currentOption && currentOption.dataset.category !== selectedCategory) {
-                    productFilter.value = '';
-                }
-            }
-        });
-    }
+    // Initialize filters on page load
+    filterMainCategories();
+    filterSubCategories();
+    filterProducts();
 });
+
+function filterMainCategories() {
+    const categorySelect = document.getElementById('category');
+    const mainCategorySelect = document.getElementById('main_category');
+    const selectedCategory = categorySelect.value;
+    
+    // Show/hide main category options based on selected category
+    const mainCategoryOptions = mainCategorySelect.querySelectorAll('option[data-category]');
+    let hasVisibleOptions = false;
+    
+    mainCategoryOptions.forEach(option => {
+        const shouldShow = !selectedCategory || option.dataset.category === selectedCategory;
+        option.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) hasVisibleOptions = true;
+    });
+    
+    // Reset main category if current selection is not visible
+    if (selectedCategory && mainCategorySelect.value) {
+        const currentOption = mainCategorySelect.querySelector(`option[value="${mainCategorySelect.value}"]`);
+        if (currentOption && currentOption.dataset.category !== selectedCategory) {
+            mainCategorySelect.value = '';
+        }
+    }
+    
+    // Cascade to next level
+    filterSubCategories();
+}
+
+function filterSubCategories() {
+    const mainCategorySelect = document.getElementById('main_category');
+    const subCategorySelect = document.getElementById('sub_category');
+    const selectedMainCategory = mainCategorySelect.value;
+    
+    // Show/hide sub category options based on selected main category
+    const subCategoryOptions = subCategorySelect.querySelectorAll('option[data-main-category]');
+    let hasVisibleOptions = false;
+    
+    subCategoryOptions.forEach(option => {
+        const shouldShow = !selectedMainCategory || option.dataset.mainCategory === selectedMainCategory;
+        option.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) hasVisibleOptions = true;
+    });
+    
+    // Reset sub category if current selection is not visible
+    if (selectedMainCategory && subCategorySelect.value) {
+        const currentOption = subCategorySelect.querySelector(`option[value="${subCategorySelect.value}"]`);
+        if (currentOption && currentOption.dataset.mainCategory !== selectedMainCategory) {
+            subCategorySelect.value = '';
+        }
+    }
+    
+    // Cascade to next level
+    filterProducts();
+}
+
+function filterProducts() {
+    const categorySelect = document.getElementById('category');
+    const mainCategorySelect = document.getElementById('main_category');
+    const subCategorySelect = document.getElementById('sub_category');
+    const productSelect = document.getElementById('product');
+    
+    const selectedCategory = categorySelect.value;
+    const selectedMainCategory = mainCategorySelect.value;
+    const selectedSubCategory = subCategorySelect.value;
+    
+    // Show/hide products based on selected categories
+    const productOptions = productSelect.querySelectorAll('option[data-category]');
+    
+    productOptions.forEach(option => {
+        let shouldShow = true;
+        
+        // Filter by category
+        if (selectedCategory && option.dataset.category !== selectedCategory) {
+            shouldShow = false;
+        }
+        
+        // Filter by main category
+        if (selectedMainCategory && option.dataset.mainCategory !== selectedMainCategory) {
+            shouldShow = false;
+        }
+        
+        // Filter by sub category
+        if (selectedSubCategory && option.dataset.subCategory !== selectedSubCategory) {
+            shouldShow = false;
+        }
+        
+        option.style.display = shouldShow ? '' : 'none';
+    });
+    
+    // Reset product if current selection is not visible
+    if (productSelect.value) {
+        const currentOption = productSelect.querySelector(`option[value="${productSelect.value}"]`);
+        if (currentOption && currentOption.style.display === 'none') {
+            productSelect.value = '';
+        }
+    }
+}
 
 let currentDeleteId = null;
 

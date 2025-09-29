@@ -5,7 +5,7 @@ URL configuration for the core app.
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
-from .views import dashboard, submissions, approvals, reports, bulk_entry
+from .views import dashboard, submissions, approvals, reports, bulk_entry, utilities
 
 app_name = 'core'
 
@@ -42,4 +42,8 @@ urlpatterns = [
     
     # Reports
     path('reports/', reports.reports_index, name='reports'),
+    
+    # Utilities
+    path('utilities/bulk-upload-products/', utilities.bulk_upload_products, name='bulk_upload_products'),
+    path('utilities/bulk-upload-results/', utilities.bulk_upload_results, name='bulk_upload_results'),
 ]

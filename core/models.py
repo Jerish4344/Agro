@@ -70,19 +70,85 @@ class ProductCategory(models.Model):
         return f"{self.name} ({self.code})"
 
 
-class Product(models.Model):
-    """Individual products like Apple, Banana, Tomato"""
+class MainCategory(models.Model):
+    """Main categories like 'Fruit N Vegetable'"""
     name = models.CharField(max_length=100)
-    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name='products')
+    code = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, help_text="Description of this main category")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = "Main Categories"
+    
+    def __str__(self):
+        return f"{self.name}"
+
+
+class SubCategory(models.Model):
+    """Sub categories like 'Apple N Pear', 'Bananas', 'Tropical Fruit', etc."""
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, unique=True)
+    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name='subcategories',
+                                help_text="Parent category (Fresh Fruit/Fresh Veg)")
+    main_category = models.ForeignKey(MainCategory, on_delete=models.CASCADE, related_name='subcategories',
+                                     help_text="Main category classification")
+    description = models.TextField(blank=True, help_text="Description of this sub category")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['category__name', 'name']
+        verbose_name_plural = "Sub Categories"
         unique_together = ['name', 'category']
     
     def __str__(self):
         return f"{self.name} ({self.category.name})"
+    
+    def get_full_hierarchy(self):
+        """Get the full hierarchical path"""
+        return f"{self.category.name} > {self.main_category.name} > {self.name}"
+
+
+class Product(models.Model):
+    """Individual products like Apple Fuji, Banana Nendran, etc."""
+    name = models.CharField(max_length=100)
+    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name='products',
+                                help_text="Primary category (Fresh Fruit/Fresh Veg)")
+    main_category = models.ForeignKey(MainCategory, on_delete=models.CASCADE, related_name='products',
+                                     help_text="Main category classification", null=True, blank=True)
+    sub_category = models.ForeignKey(SubCategory, on_delete=models.CASCADE, related_name='products',
+                                    help_text="Specific sub category", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['category__name', 'sub_category__name', 'name']
+        unique_together = ['name', 'sub_category']
+    
+    def __str__(self):
+        return f"{self.name} ({self.sub_category.name})"
+    
+    def get_full_hierarchy(self):
+        """Get the full hierarchical path"""
+        return f"{self.category.name} > {self.main_category.name} > {self.sub_category.name} > {self.name}"
+    
+    def clean(self):
+        """Validate that the hierarchical relationships are consistent"""
+        super().clean()
+        
+        if self.sub_category and self.category:
+            if self.sub_category.category != self.category:
+                raise ValidationError({
+                    'sub_category': f'Sub category {self.sub_category.name} does not belong to category {self.category.name}'
+                })
+        
+        if self.sub_category and self.main_category:
+            if self.sub_category.main_category != self.main_category:
+                raise ValidationError({
+                    'main_category': f'Main category {self.main_category.name} does not match sub category\'s main category'
+                })
 
 
 class UserProfile(models.Model):

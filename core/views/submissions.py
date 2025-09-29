@@ -24,7 +24,10 @@ from datetime import datetime
 import json
 from decimal import Decimal
 
-from ..models import PriceSubmission, Product, ProductCategory, Location, Farmer, Firm, UserProfile
+from ..models import (
+    PriceSubmission, Product, ProductCategory, MainCategory, SubCategory,
+    Location, Farmer, Firm, UserProfile, BuyerProfile
+)
 from ..forms import BuyerSubmissionForm, PriceSubmissionFilterForm
 from ..services.reporting_service import ReportingService
 
@@ -210,6 +213,10 @@ class SubmissionListView(LoginRequiredMixin, ListView):
         # Add products for the filter dropdown
         context['products'] = Product.objects.all().order_by('name')
         
+        # Add hierarchical data for cascading filters
+        context['main_categories'] = MainCategory.objects.all().order_by('name')
+        context['sub_categories'] = SubCategory.objects.all().order_by('name')
+        
         return context
 
 
@@ -266,6 +273,11 @@ class SubmissionCreateView(LoginRequiredMixin, CreateView):
         # Get all firms for dropdown
         firms = Firm.objects.all()
         
+        # Add hierarchical data for cascading filters
+        context['categories'] = categories
+        context['main_categories'] = MainCategory.objects.all().order_by('name')
+        context['sub_categories'] = SubCategory.objects.all().order_by('name')
+        
         context['products_by_category'] = dict(products_by_category)
         context['farmers_by_location'] = dict(farmers_by_location)
         context['firms'] = firms
@@ -318,6 +330,11 @@ class SubmissionUpdateView(LoginRequiredMixin, UpdateView):
         
         # Get all firms for dropdown
         firms = Firm.objects.all()
+        
+        # Add hierarchical data for cascading filters
+        context['categories'] = categories
+        context['main_categories'] = MainCategory.objects.all().order_by('name')
+        context['sub_categories'] = SubCategory.objects.all().order_by('name')
         
         context['products_by_category'] = dict(products_by_category)
         context['farmers_by_location'] = dict(farmers_by_location)
@@ -513,6 +530,8 @@ def excel_submission_view(request):
         'products_json': json.dumps(products_data),
         'dates_json': json.dumps(dates_data),
         'categories': allowed_categories,
+        'main_categories': MainCategory.objects.all().order_by('name'),
+        'sub_categories': SubCategory.objects.all().order_by('name'),
         'today': today,
         'date_range': date_range,
     }
@@ -600,6 +619,8 @@ def business_head_excel_submission_view(request):
         'products': products,
         'products_json': json.dumps(products_data),
         'categories': all_categories,
+        'main_categories': MainCategory.objects.all().order_by('name'),
+        'sub_categories': SubCategory.objects.all().order_by('name'),
         'today': today,
         'is_business_head': True,
         'price_data': json.dumps(price_data),

@@ -1,0 +1,225 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Bulk Upload Results{% endblock %}
+
+{% block extra_css %}
+<style>
+    .results-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .results-card {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 24px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin: 24px 0;
+    }
+    
+    .stat-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #1f2937;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .products-table {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-top: 24px;
+    }
+    
+    .products-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .products-table th {
+        background: #f8fafc;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .products-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .action-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .action-created {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .action-updated {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .action-would_process {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+    
+    .errors-section {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 24px;
+    }
+    
+    .error-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 12px;
+    }
+    
+    .error-item {
+        background: white;
+        border: 1px solid #fecaca;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="results-container">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Bulk Upload Results</h1>
+            <p class="text-gray-600">Summary of your product upload operation</p>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="results-card">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">📊 Summary</h2>
+            <p class="text-gray-700 mb-4">{{ results.summary }}</p>
+            
+            <!-- Statistics Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number text-blue-600">{{ results.categories_created }}</div>
+                    <div class="stat-label">Categories Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number text-purple-600">{{ results.main_categories_created }}</div>
+                    <div class="stat-label">Main Categories Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number text-indigo-600">{{ results.sub_categories_created }}</div>
+                    <div class="stat-label">Sub Categories Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number text-green-600">{{ results.products_created }}</div>
+                    <div class="stat-label">Products Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number text-yellow-600">{{ results.products_updated }}</div>
+                    <div class="stat-label">Products Updated</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errors Section -->
+        {% if results.errors %}
+        <div class="results-card">
+            <h2 class="text-xl font-bold text-red-600 mb-4">⚠️ Errors ({{ results.errors|length }})</h2>
+            <div class="errors-section">
+                <p class="text-red-800 font-medium">The following errors occurred during processing:</p>
+                <div class="error-list">
+                    {% for error in results.errors %}
+                    <div class="error-item">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Processed Products -->
+        {% if results.processed_products %}
+        <div class="results-card">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">📋 Processed Products ({{ results.processed_products|length }})</h2>
+            
+            <div class="products-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Main Category</th>
+                            <th>Sub Category</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in results.processed_products %}
+                        <tr>
+                            <td class="font-medium">{{ product.name }}</td>
+                            <td>{{ product.category }}</td>
+                            <td>{{ product.main_category }}</td>
+                            <td>{{ product.sub_category }}</td>
+                            <td>
+                                <span class="action-badge action-{{ product.action }}">
+                                    {% if product.action == 'created' %}✅ Created
+                                    {% elif product.action == 'updated' %}🔄 Updated
+                                    {% elif product.action == 'would_process' %}👁️ Would Process
+                                    {% else %}{{ product.action|title }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="flex gap-4 justify-center">
+            <a href="{% url 'core:bulk_upload_products' %}" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold">
+                Upload Another File
+            </a>
+            <a href="{% url 'core:dashboard' %}" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

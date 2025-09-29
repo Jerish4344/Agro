@@ -17,8 +17,8 @@ import json
 from decimal import Decimal
 
 from ..models import (
-    PriceSubmission, Product, ProductCategory, Location, 
-    Farmer, Firm, UserProfile
+    PriceSubmission, Product, ProductCategory, MainCategory, SubCategory,
+    Location, Farmer, Firm, UserProfile
 )
 
 
@@ -30,7 +30,7 @@ class BulkPriceEntryView(LoginRequiredMixin, TemplateView):
         """Ensure only buyers can access this view"""
         if not hasattr(request.user, 'profile') or not request.user.profile.is_buyer():
             messages.error(request, "Only buyers can access the bulk price entry.")
-            return redirect('submissions:list')
+            return redirect('core:submission_list')
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -52,7 +52,9 @@ class BulkPriceEntryView(LoginRequiredMixin, TemplateView):
         # Get products from allowed categories
         products = Product.objects.filter(
             category__in=allowed_categories
-        ).select_related('category').order_by('category__name', 'name')
+        ).select_related('category', 'main_category', 'sub_category').order_by(
+            'category__name', 'sub_category__name', 'name'
+        )
         
         # Generate date range (current week + next week)
         today = timezone.now().date()
@@ -81,6 +83,12 @@ class BulkPriceEntryView(LoginRequiredMixin, TemplateView):
                 'status': submission.status
             }
         
+        # Get hierarchical categories
+        main_categories = MainCategory.objects.all().order_by('name')
+        sub_categories = SubCategory.objects.filter(
+            category__in=allowed_categories
+        ).select_related('category', 'main_category').order_by('category__name', 'name')
+        
         context.update({
             'firm': firm,
             'products': products,
@@ -88,6 +96,8 @@ class BulkPriceEntryView(LoginRequiredMixin, TemplateView):
             'date_range': date_range,
             'existing_prices': existing_prices,
             'categories': allowed_categories,
+            'main_categories': main_categories,
+            'sub_categories': sub_categories,
             'units': PriceSubmission.UNIT_CHOICES,
         })
         

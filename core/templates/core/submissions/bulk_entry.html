@@ -104,6 +104,16 @@
         margin-right: 8px;
     }
     
+    .sub-category-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #fef3c7;
+        color: #92400e;
+        border-radius: 8px;
+        font-size: 10px;
+        margin-right: 6px;
+    }
+    
     .farmer-selector {
         margin-bottom: 20px;
         padding: 16px;
@@ -174,6 +184,28 @@
             </div>
             
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Main Category Filter</label>
+                <select id="mainCategoryFilter" class="border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Main Categories</option>
+                    {% for main_category in main_categories %}
+                        <option value="{{ main_category.id }}">{{ main_category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Sub Category Filter</label>
+                <select id="subCategoryFilter" class="border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Sub Categories</option>
+                    {% for sub_category in sub_categories %}
+                        <option value="{{ sub_category.id }}" data-category="{{ sub_category.category.id }}" data-main-category="{{ sub_category.main_category.id }}">
+                            {{ sub_category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Location Filter</label>
                 <select id="locationFilter" class="border border-gray-300 rounded-md px-3 py-2">
                     <option value="">All Locations</option>
@@ -232,9 +264,15 @@
             </thead>
             <tbody id="gridBody">
                 {% for product in products %}
-                    <tr class="product-row" data-category="{{ product.category.id }}">
+                    <tr class="product-row" 
+                        data-category="{{ product.category.id }}"
+                        data-main-category="{{ product.main_category.id|default:'' }}"
+                        data-sub-category="{{ product.sub_category.id|default:'' }}">
                         <td class="product-cell">
                             <span class="category-badge">{{ product.category.name }}</span>
+                            {% if product.sub_category %}
+                                <span class="sub-category-badge">{{ product.sub_category.name }}</span>
+                            {% endif %}
                             <span class="font-medium">{{ product.name }}</span>
                         </td>
                         {% for date in date_range %}
@@ -298,12 +336,80 @@
 document.addEventListener('DOMContentLoaded', function() {
     const farmerSelect = document.getElementById('farmerSelect');
     const categoryFilter = document.getElementById('categoryFilter');
+    const mainCategoryFilter = document.getElementById('mainCategoryFilter');
+    const subCategoryFilter = document.getElementById('subCategoryFilter');
     const locationFilter = document.getElementById('locationFilter');
     const saveAllBtn = document.getElementById('saveAllBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const gridBody = document.getElementById('gridBody');
     const entryCount = document.getElementById('entryCount');
     const defaultUnit = document.getElementById('defaultUnit');
+    
+    // Hierarchical filtering function
+    function applyFilters() {
+        const selectedCategory = categoryFilter.value;
+        const selectedMainCategory = mainCategoryFilter.value;
+        const selectedSubCategory = subCategoryFilter.value;
+        const rows = document.querySelectorAll('.product-row');
+        
+        rows.forEach(row => {
+            let show = true;
+            
+            // Category filter
+            if (selectedCategory && row.dataset.category !== selectedCategory) {
+                show = false;
+            }
+            
+            // Main category filter
+            if (selectedMainCategory && row.dataset.mainCategory !== selectedMainCategory) {
+                show = false;
+            }
+            
+            // Sub category filter
+            if (selectedSubCategory && row.dataset.subCategory !== selectedSubCategory) {
+                show = false;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    
+    // Update sub category options based on category selection
+    function updateSubCategoryOptions() {
+        const selectedCategory = categoryFilter.value;
+        const selectedMainCategory = mainCategoryFilter.value;
+        const subCategoryOptions = subCategoryFilter.querySelectorAll('option');
+        
+        subCategoryOptions.forEach(option => {
+            if (option.value === '') {
+                option.style.display = '';
+                return;
+            }
+            
+            let show = true;
+            
+            // Filter by category
+            if (selectedCategory && option.dataset.category !== selectedCategory) {
+                show = false;
+            }
+            
+            // Filter by main category
+            if (selectedMainCategory && option.dataset.mainCategory !== selectedMainCategory) {
+                show = false;
+            }
+            
+            option.style.display = show ? '' : 'none';
+        });
+        
+        // Reset sub category selection if current selection is now hidden
+        const currentSubCategory = subCategoryFilter.value;
+        if (currentSubCategory) {
+            const currentOption = subCategoryFilter.querySelector(`option[value="${currentSubCategory}"]`);
+            if (currentOption && currentOption.style.display === 'none') {
+                subCategoryFilter.value = '';
+            }
+        }
+    }
     
     let currentFarmer = null;
     let changedEntries = new Set();
@@ -316,18 +422,19 @@ document.addEventListener('DOMContentLoaded', function() {
         loadExistingPrices();
     });
     
-    // Category filter
+    // Hierarchical filter event listeners
     categoryFilter.addEventListener('change', function() {
-        const selectedCategory = this.value;
-        const rows = document.querySelectorAll('.product-row');
-        
-        rows.forEach(row => {
-            if (!selectedCategory || row.dataset.category === selectedCategory) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
+        updateSubCategoryOptions();
+        applyFilters();
+    });
+    
+    mainCategoryFilter.addEventListener('change', function() {
+        updateSubCategoryOptions();
+        applyFilters();
+    });
+    
+    subCategoryFilter.addEventListener('change', function() {
+        applyFilters();
     });
     
     // Location filter for farmers
@@ -454,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loadingOverlay').style.display = 'flex';
         
         // Save entries
-        fetch('{% url "submissions:bulk_save" %}', {
+        fetch('{% url "core:bulk_save" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

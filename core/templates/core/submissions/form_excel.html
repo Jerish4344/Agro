@@ -301,20 +301,41 @@
     <!-- Category and Product Selection -->
     <div class="category-selector">
         <div class="flex items-center justify-between flex-wrap gap-4">
-            <div class="flex items-center gap-4">
-                <label class="text-sm font-medium text-gray-700">Filter by Category:</label>
-                <select id="categoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+            <div class="flex items-center gap-4 flex-wrap">
+                <label class="text-sm font-medium text-gray-700">Category:</label>
+                <select id="categoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white" onchange="filterMainCategories()">
                     <option value="">All Categories</option>
                     {% for category in categories %}
                         <option value="{{ category.id }}">{{ category.name }}</option>
                     {% endfor %}
                 </select>
                 
-                <label class="text-sm font-medium text-gray-700 ml-4">Filter by Product:</label>
+                <label class="text-sm font-medium text-gray-700">Main Category:</label>
+                <select id="mainCategoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white" onchange="filterSubCategories()">
+                    <option value="">All Main Categories</option>
+                    {% for main_category in main_categories %}
+                        <option value="{{ main_category.id }}" data-category="{{ main_category.category.id }}">{{ main_category.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <label class="text-sm font-medium text-gray-700">Sub Category:</label>
+                <select id="subCategoryFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white" onchange="filterProducts()">
+                    <option value="">All Sub Categories</option>
+                    {% for sub_category in sub_categories %}
+                        <option value="{{ sub_category.id }}" data-main-category="{{ sub_category.main_category.id }}">{{ sub_category.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <label class="text-sm font-medium text-gray-700">Product:</label>
                 <select id="productFilter" class="border border-gray-300 rounded-md px-3 py-2 bg-white">
                     <option value="">All Products</option>
                     {% for product in products %}
-                        <option value="{{ product.id }}" data-category="{{ product.category.id }}">{{ product.name }}</option>
+                        <option value="{{ product.id }}" 
+                                data-category="{{ product.category.id }}"
+                                data-main-category="{{ product.main_category.id|default:'' }}"
+                                data-sub-category="{{ product.sub_category.id|default:'' }}">
+                            {{ product.name }}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -350,13 +371,30 @@
             </thead>
             <tbody id="gridBody">
                 {% for product in products %}
-                    <tr class="product-row" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                    <tr class="product-row" 
+                        data-product="{{ product.id }}" 
+                        data-category="{{ product.category.id }}"
+                        data-main-category="{{ product.main_category.id|default:'' }}"
+                        data-sub-category="{{ product.sub_category.id|default:'' }}">
                         <td class="product-cell">
                             <div class="font-semibold text-gray-900">{{ product.name }}</div>
-                            <div class="product-info text-xs text-gray-600">{{ product.category.name }}</div>
+                            <div class="product-info text-xs text-gray-600">
+                                {% if product.sub_category %}
+                                    {{ product.sub_category.name }}
+                                {% elif product.main_category %}
+                                    {{ product.main_category.name }}
+                                {% else %}
+                                    {{ product.category.name }}
+                                {% endif %}
+                            </div>
                         </td>
                         {% for farmer in region_farmers %}
-                            <td class="price-cell" data-farmer="{{ farmer.id }}" data-product="{{ product.id }}" data-category="{{ product.category.id }}">
+                            <td class="price-cell" 
+                                data-farmer="{{ farmer.id }}" 
+                                data-product="{{ product.id }}" 
+                                data-category="{{ product.category.id }}"
+                                data-main-category="{{ product.main_category.id|default:'' }}"
+                                data-sub-category="{{ product.sub_category.id|default:'' }}">
                                 <input type="number" 
                                        class="price-input" 
                                        placeholder="₹"
@@ -535,74 +573,150 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Category filtering
-    categoryFilter.addEventListener('change', function() {
-        const selectedCategory = this.value;
-        const headers = document.querySelectorAll('.product-header');
-        const cells = document.querySelectorAll('.price-cell');
-        
-        headers.forEach((header, index) => {
-            const categoryId = header.dataset.category;
-            const shouldShow = !selectedCategory || categoryId === selectedCategory;
-            
-            header.style.display = shouldShow ? '' : 'none';
-            
-            // Hide corresponding cells in all rows
-            cells.forEach(cell => {
-                if (cell.dataset.category === categoryId) {
-                    cell.style.display = shouldShow ? '' : 'none';
-                }
-            });
-        });
-        
-        // Update product filter options based on selected category
-        updateProductFilter(selectedCategory);
-        
-        updateStatistics();
+    // Hierarchical category filtering system
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize filters on page load
+        filterMainCategories();
+        filterSubCategories();
+        filterProducts();
     });
-    
-    // Product filtering
-    productFilter.addEventListener('change', function() {
-        const selectedProduct = this.value;
-        const headers = document.querySelectorAll('.product-header');
-        const cells = document.querySelectorAll('.price-cell');
+
+    function filterMainCategories() {
+        const categorySelect = document.getElementById('categoryFilter');
+        const mainCategorySelect = document.getElementById('mainCategoryFilter');
+        const selectedCategory = categorySelect.value;
         
-        headers.forEach((header, index) => {
-            const productId = header.dataset.product;
-            const shouldShow = !selectedProduct || productId === selectedProduct;
-            
-            header.style.display = shouldShow ? '' : 'none';
-            
-            // Hide corresponding cells in all rows
-            cells.forEach(cell => {
-                if (cell.dataset.product === productId) {
-                    cell.style.display = shouldShow ? '' : 'none';
-                }
-            });
-        });
+        // Show/hide main category options based on selected category
+        const mainCategoryOptions = mainCategorySelect.querySelectorAll('option[data-category]');
         
-        updateStatistics();
-    });
-    
-    // Function to update product filter based on category selection
-    function updateProductFilter(selectedCategory) {
-        const productOptions = productFilter.querySelectorAll('option[data-category]');
-        
-        productOptions.forEach(option => {
-            const optionCategory = option.dataset.category;
-            const shouldShow = !selectedCategory || optionCategory === selectedCategory;
+        mainCategoryOptions.forEach(option => {
+            const shouldShow = !selectedCategory || option.dataset.category === selectedCategory;
             option.style.display = shouldShow ? '' : 'none';
         });
         
-        // Reset product filter if current selection is not visible
-        if (selectedCategory && productFilter.value) {
-            const currentOption = productFilter.querySelector(`option[value="${productFilter.value}"]`);
+        // Reset main category if current selection is not visible
+        if (selectedCategory && mainCategorySelect.value) {
+            const currentOption = mainCategorySelect.querySelector(`option[value="${mainCategorySelect.value}"]`);
             if (currentOption && currentOption.dataset.category !== selectedCategory) {
-                productFilter.value = '';
-                // Trigger product filter change to show all products in the selected category
-                productFilter.dispatchEvent(new Event('change'));
+                mainCategorySelect.value = '';
             }
         }
+        
+        // Cascade to next level
+        filterSubCategories();
+    }
+
+    function filterSubCategories() {
+        const mainCategorySelect = document.getElementById('mainCategoryFilter');
+        const subCategorySelect = document.getElementById('subCategoryFilter');
+        const selectedMainCategory = mainCategorySelect.value;
+        
+        // Show/hide sub category options based on selected main category
+        const subCategoryOptions = subCategorySelect.querySelectorAll('option[data-main-category]');
+        
+        subCategoryOptions.forEach(option => {
+            const shouldShow = !selectedMainCategory || option.dataset.mainCategory === selectedMainCategory;
+            option.style.display = shouldShow ? '' : 'none';
+        });
+        
+        // Reset sub category if current selection is not visible
+        if (selectedMainCategory && subCategorySelect.value) {
+            const currentOption = subCategorySelect.querySelector(`option[value="${subCategorySelect.value}"]`);
+            if (currentOption && currentOption.dataset.mainCategory !== selectedMainCategory) {
+                subCategorySelect.value = '';
+            }
+        }
+        
+        // Cascade to next level
+        filterProducts();
+    }
+
+    function filterProducts() {
+        const categorySelect = document.getElementById('categoryFilter');
+        const mainCategorySelect = document.getElementById('mainCategoryFilter');
+        const subCategorySelect = document.getElementById('subCategoryFilter');
+        const productSelect = document.getElementById('productFilter');
+        
+        const selectedCategory = categorySelect.value;
+        const selectedMainCategory = mainCategorySelect.value;
+        const selectedSubCategory = subCategorySelect.value;
+        
+        // Show/hide products based on selected categories
+        const productOptions = productSelect.querySelectorAll('option[data-category]');
+        
+        productOptions.forEach(option => {
+            let shouldShow = true;
+            
+            // Filter by category
+            if (selectedCategory && option.dataset.category !== selectedCategory) {
+                shouldShow = false;
+            }
+            
+            // Filter by main category
+            if (selectedMainCategory && option.dataset.mainCategory !== selectedMainCategory) {
+                shouldShow = false;
+            }
+            
+            // Filter by sub category
+            if (selectedSubCategory && option.dataset.subCategory !== selectedSubCategory) {
+                shouldShow = false;
+            }
+            
+            option.style.display = shouldShow ? '' : 'none';
+        });
+        
+        // Reset product if current selection is not visible
+        if (productSelect.value) {
+            const currentOption = productSelect.querySelector(`option[value="${productSelect.value}"]`);
+            if (currentOption && currentOption.style.display === 'none') {
+                productSelect.value = '';
+            }
+        }
+        
+        // Update the Excel grid display
+        updateGridDisplay();
+    }
+
+    // Product filtering - updated to work with hierarchical system
+    productFilter.addEventListener('change', function() {
+        updateGridDisplay();
+    });
+
+    function updateGridDisplay() {
+        const selectedCategory = document.getElementById('categoryFilter').value;
+        const selectedMainCategory = document.getElementById('mainCategoryFilter').value;
+        const selectedSubCategory = document.getElementById('subCategoryFilter').value;
+        const selectedProduct = document.getElementById('productFilter').value;
+        
+        const productRows = document.querySelectorAll('.product-row');
+        
+        productRows.forEach((row) => {
+            let shouldShow = true;
+            
+            // Check category filter
+            if (selectedCategory && row.dataset.category !== selectedCategory) {
+                shouldShow = false;
+            }
+            
+            // Check main category filter (if product has this data)
+            if (selectedMainCategory && row.dataset.mainCategory && row.dataset.mainCategory !== selectedMainCategory) {
+                shouldShow = false;
+            }
+            
+            // Check sub category filter (if product has this data)
+            if (selectedSubCategory && row.dataset.subCategory && row.dataset.subCategory !== selectedSubCategory) {
+                shouldShow = false;
+            }
+            
+            // Check product filter
+            if (selectedProduct && row.dataset.product !== selectedProduct) {
+                shouldShow = false;
+            }
+            
+            row.style.display = shouldShow ? '' : 'none';
+        });
+        
+        updateStatistics();
     }
     
     // Auto-save toggle

@@ -19,7 +19,7 @@ try:
 except ImportError:
     OPENPYXL_AVAILABLE = False
 
-from ..models import PriceSubmission, Firm, ProductCategory, Product, Location
+from ..models import PriceSubmission, Firm, ProductCategory, MainCategory, SubCategory, Product, Location
 from ..services.reporting_service import ReportingService
 from ..forms import PriceSubmissionFilterForm
 
@@ -76,7 +76,11 @@ def reports_index(request):
         'today_stats': today_stats,
         'weekly_stats': weekly_stats,
         'top_products': top_products,
-        'report_date': today
+        'report_date': today,
+        # Add hierarchical data for filters
+        'categories': ProductCategory.objects.all().order_by('name'),
+        'main_categories': MainCategory.objects.all().order_by('name'),
+        'sub_categories': SubCategory.objects.all().order_by('name'),
     }
     
     return render(request, 'core/reports/index.html', context)

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from .models import (
-    Firm, Location, Farmer, ProductCategory, Product, 
+    Firm, Location, Farmer, ProductCategory, MainCategory, SubCategory, Product, 
     UserProfile, BuyerProfile, CategoryHeadProfile, BusinessHeadProfile,
     PriceSubmission
 )
@@ -59,12 +59,40 @@ class ProductCategoryAdmin(admin.ModelAdmin):
     product_count.short_description = 'Products'
 
 
+@admin.register(MainCategory)
+class MainCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'subcategory_count', 'product_count', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['name', 'code']
+    ordering = ['name']
+    
+    def subcategory_count(self, obj):
+        return obj.subcategories.count()
+    subcategory_count.short_description = 'Sub Categories'
+    
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+
+@admin.register(SubCategory)
+class SubCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'main_category', 'product_count', 'created_at']
+    list_filter = ['category', 'main_category', 'created_at']
+    search_fields = ['name', 'code', 'category__name', 'main_category__name']
+    ordering = ['category__name', 'main_category__name', 'name']
+    
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'submission_count', 'avg_price', 'created_at']
-    list_filter = ['category', 'created_at']
-    search_fields = ['name', 'category__name']
-    ordering = ['category__name', 'name']
+    list_display = ['name', 'category', 'main_category', 'sub_category', 'submission_count', 'avg_price', 'created_at']
+    list_filter = ['category', 'main_category', 'sub_category', 'created_at']
+    search_fields = ['name', 'category__name', 'main_category__name', 'sub_category__name']
+    ordering = ['category__name', 'sub_category__name', 'name']
     
     def submission_count(self, obj):
         return obj.price_submissions.count()
